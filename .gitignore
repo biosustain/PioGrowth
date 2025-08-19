@@ -1,3 +1,4 @@
 *app_diagram*
 **/.DS_Store
 .Rhistory
+.pytest_cache
