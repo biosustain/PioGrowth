@@ -27,8 +27,21 @@ turbistat_modus = st.Page(
 about_page = st.Page(render_about, title="About")
 
 # Sidebar
-st.sidebar.header("Download:")
-st.sidebar.write("Plot and other things (buttons)")
+st.sidebar.header("Info:")
+st.sidebar.write("version: 0.0.1")
+st.sidebar.button(
+    "Download raw data",
+    on_click=lambda: print("Download functionality not implemented yet."),
+)
+st.sidebar.button(
+    "Download growth rate plots",
+    on_click=lambda: print("Download functionality not implemented yet."),
+)
+st.sidebar.button(
+    "Download summarized data",
+    on_click=lambda: print("Download functionality not implemented yet."),
+)
+st.sidebar.button("Reset session", on_click=st.session_state.clear)
 
 # build multi-page app
 pg = st.navigation([raw_data, batch_analysis, turbistat_modus, about_page])
