@@ -1,11 +1,16 @@
 import streamlit as st
+from ui_components import is_data_available, show_warning_to_upload_data
 
 st.title("Growth Analysis of turbidostat mode")
 
+no_data_uploaded = not is_data_available()
+
+if no_data_uploaded:
+    show_warning_to_upload_data()
+    
 st.markdown("Analyse pioreactor OD600 measurements when running in turbidostat mode.")
 
 with st.form(key="turbidostat_form"):
-    st.radio(label="Filtering Strategy for x values", options=["Remove", "Keep"])
     st.text_input(
         label=(
             "Reactor Group - Members of a group are comma separated (`,`) and groups "
