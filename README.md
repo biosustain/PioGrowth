@@ -1,8 +1,8 @@
 # PioGrowth
-Repository for ShinyLive based app for analysis of Optical Density mesurements 
+Repository for Streamlit app for analysis of optical density (OD) measurements
 produced mainly with a [PioReactor](https://pioreactor.com/)
 
-It was created on the basis of three individual 
+It was created on the basis of three individual apps
 
 - [milnus/pioreactor_turbidostat_shiny](https://github.com/milnus/pioreactor_turbidostat_shiny)
 - [milnus/Batch_analysis](https://github.com/milnus/Batch_analysis)
@@ -27,7 +27,8 @@ streamlit run app/main.py
 
 ## History
 
-The joint app combining three Shiny apps for PioReactor tools was started as well as an
-shiny app, in the original repository of this fork 
-(see: [milnus/PioGrowth](https://github.com/milnus/PioGrowth)). 
+The joint app combining three Shiny apps for PioReactor tools was started as the 
+three individual apps mentioned above using shiny, but never completed. You can find the 
+last development version in the original repository of this fork 
+(see: [milnus/PioGrowth](https://github.com/milnus/PioGrowth)).
 
