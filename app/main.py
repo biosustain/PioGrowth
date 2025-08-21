@@ -30,7 +30,7 @@ about_page = st.Page(render_about, title="About")
 st.sidebar.header("Info:")
 st.sidebar.write("version: 0.0.1")
 st.sidebar.button(
-    "Download raw data",
+    "Download selected raw data",
     on_click=lambda: print("Download functionality not implemented yet."),
 )
 st.sidebar.button(
