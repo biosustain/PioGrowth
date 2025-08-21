@@ -63,12 +63,8 @@ with st.form("Batch_processing_options", enter_to_submit=True):
 
 # Process button
 if form_submit and not no_data_uploaded:
-    st.write("Filter option:", filter_option)
     st.session_state.process_batch = True
-    df_raw_od_data = pd.read_csv(file).convert_dtypes()
-    df_raw_od_data = df_raw_od_data.assign(
-        timestamp=pd.to_datetime(df_raw_od_data["timestamp"])
-    )
+    df_raw_od_data = st.session_state["df_raw_od_data"]
     with raw_data:
         st.dataframe(df_raw_od_data, use_container_width=True)
 

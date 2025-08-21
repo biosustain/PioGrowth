@@ -4,6 +4,8 @@ import streamlit as st
 custom_id = st.session_state["custom_id"]
 df_raw_od_data = st.session_state["df_raw_od_data"]
 
+st.title("Upload Data")
+
 with st.form("Upload_data_form", clear_on_submit=False):
 
     file = st.file_uploader(
@@ -15,6 +17,8 @@ with st.form("Upload_data_form", clear_on_submit=False):
         max_chars=30,
         value=custom_id,
     )
+    filter_option = st.radio("Select filter option", ("Remove", "Keep"))
+    round_time = st.slider("Round time to nearest minute", 0, 15, 5, step=1)
     st.form_submit_button("Submit", type="primary")
 
 raw_data = st.empty()
