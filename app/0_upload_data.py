@@ -1,5 +1,6 @@
 import pandas as pd
 import streamlit as st
+from plots import plot_growth_data
 
 custom_id = st.session_state["custom_id"]
 df_raw_od_data = st.session_state["df_raw_od_data"]
@@ -52,12 +53,9 @@ with container_raw_data:
 
 if df_raw_od_data is not None:
     # Download options
-    st.download_button(
-        "Download Raw Data",
-        data=df_raw_od_data.to_csv(),
-        file_name=f"{custom_id}_quervE_data.csv",
-        mime="text/csv",
-    )
+    fig = plot_growth_data(df_raw_od_data)
+    st.write(fig)
+
 
 st.markdown("### Store in QuervE format")
 
