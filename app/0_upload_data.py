@@ -7,6 +7,8 @@ df_raw_od_data = st.session_state["df_raw_od_data"]
 
 st.title("Upload Data")
 
+container_download_example = st.empty()
+
 with st.form("Upload_data_form", clear_on_submit=False):
 
     file = st.file_uploader(
@@ -47,6 +49,17 @@ if file is not None:
             df_raw_od_data = df_raw_od_data.loc[~mask]
         else:
             df_raw_od_data = df_raw_od_data.loc[mask]
+else:
+    with container_download_example:
+        columns = st.columns([1,2])
+        columns[0].warning('no data uploaded.')
+        columns[1].download_button(
+            label="Download example  pioreactor experiment in csv format.",
+            data=pd.read_csv("data/example_batch_data_od_readings.csv").to_csv(index=False),
+            file_name="example_batch_data_od_readings.csv",
+            key="download_example_csv",
+            mime="text/csv"
+        )
 
 with container_raw_data:
     st.dataframe(df_raw_od_data, use_container_width=True)
