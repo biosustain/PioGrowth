@@ -6,12 +6,12 @@ from matplotlib.dates import DateFormatter
 st.cache_data()
 
 
-def plot_growth_data(df: pd.DataFrame):
+def plot_growth_data(df_long: pd.DataFrame):
     """Plot optical density (OD) growth data."""
-    units = df["pioreactor_unit"].nunique()
+    units = df_long["pioreactor_unit"].nunique()
     fig, axes = plt.subplots(units, figsize=(10, 2 * units), sharey=True, sharex=True)
     # grid container (reactive to UI changes)
-    for (label, group_df), ax in zip(df.groupby("pioreactor_unit"), axes):
+    for (label, group_df), ax in zip(df_long.groupby("pioreactor_unit"), axes):
         group_df.plot.scatter(
             x="timestamp",
             y="od_reading",
