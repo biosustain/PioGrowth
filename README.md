@@ -25,6 +25,14 @@ Start the app from the root of the repository (as it's done on Streamlit Cloud):
 streamlit run app/main.py
 ```
 
+## Development environment
+
+Install package so that new code is picked up in a restared python interpreter:
+
+```bash
+pip install -e ".[dev]"
+```
+
 ## History
 
 The joint app combining three Shiny apps for PioReactor tools was started as the 
