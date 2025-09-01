@@ -3,6 +3,8 @@ import pandas as pd
 import streamlit as st
 from plots import plot_growth_data
 
+import piogrowth
+
 custom_id = st.session_state["custom_id"]
 df_raw_od_data = st.session_state["df_raw_od_data"]
 
@@ -49,16 +51,18 @@ if custom_id:
 
 
 if file is not None:
-    df_raw_od_data = pd.read_csv(file).convert_dtypes()
-    df_raw_od_data = df_raw_od_data.assign(
-        timestamp=pd.to_datetime(df_raw_od_data["timestamp"])
-    )
+    df_raw_od_data = piogrowth.load.read_csv(file)
     msg = (
         f" - Loaded {df_raw_od_data.shape[0]:,d} rows "
         f"and {df_raw_od_data.shape[1]:,d} columns.\n"
     )
-    df_raw_od_data["timestamp_rounded"] = df_raw_od_data["timestamp"].dt.round(
-        f"{round_time}s"
+    # round timestamp data
+    df_raw_od_data.insert(
+        0,
+        "timestamp_rounded",
+        df_raw_od_data["timestamp"].dt.round(
+            f"{round_time}s",
+        ),
     )
     st.session_state["df_raw_od_data"] = df_raw_od_data
 
@@ -87,7 +91,9 @@ if file is not None:
     # can be used in plot for visualization,
     # and in curve fitting (where gaps would be interpolated)
     df_wide_raw_od_data = df_raw_od_data.pivot(
-        index="timestamp_rounded", columns="pioreactor_unit", values="od_reading"
+        index="timestamp_rounded",
+        columns="pioreactor_unit",
+        values="od_reading",
     )
     st.header(f"Wide OD data with rounded timestamps to {round_time} seconds")
     window_str = "2025-06-17 09:44"
@@ -104,24 +110,12 @@ if file is not None:
 
     # skip first N seconds or measurments
     # set rolling median to x seconds
-    def out_of_iqr(s: pd.Series, factor: float = 1.5) -> pd.Series:
-        """Return a boolean Series indicating whether each value is an outlier based on the IQR method."""
-        center = s.iloc[len(s) // 2]
-        if np.isnan(center):
-            return False
-        q1 = s.quantile(0.25)
-        q3 = s.quantile(0.75)
-        iqr = q3 - q1
-        lower_bound = q1 - factor * iqr
-        upper_bound = q3 + factor * iqr
-        # center point out of IQR?
 
-        return (center < lower_bound) | (center > upper_bound)
 
     mask_outliers = (
         df_wide_raw_od_data.ffill(limit=4)
-        .rolling(41, min_periods=4, center=True)
-        .apply(out_of_iqr)
+        .rolling(31, min_periods=4, center=True)
+        .apply(piogrowth.filter.out_of_iqr)
         .astype(bool)
     )
     st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
