@@ -8,14 +8,18 @@ no_data_uploaded = not is_data_available()
 
 if no_data_uploaded:
     show_warning_to_upload_data()
-    
-st.markdown("Analyse pioreactor OD600 measurements when running in turbidostat mode. "
-            "In turbistat mode, the growth is diluted to enable continuous growth state "
-            "of microorganisms in the reactors.")
+
+st.markdown(
+    "Analyse pioreactor OD600 measurements when running in turbidostat mode. "
+    "In turbistat mode, the growth is diluted to enable continuous growth state "
+    "of microorganisms in the reactors."
+)
 
 
 with st.form(key="turbidostat_form"):
-    turbiostat_meta = st.file_uploader("Upload metadata of dilution events.", type=["csv"])
+    turbiostat_meta = st.file_uploader(
+        "Upload metadata of dilution events.", type=["csv"]
+    )
     st.text_input(
         label=(
             "Reactor Group - Members of a group are comma separated (`,`) and groups "
