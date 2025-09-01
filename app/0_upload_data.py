@@ -7,6 +7,8 @@ import piogrowth
 
 custom_id = st.session_state["custom_id"]
 df_raw_od_data = st.session_state["df_raw_od_data"]
+rolling_window = st.session_state.get("rolling_window", 31)
+min_periods = st.session_state.get("min_periods", 5)
 
 st.title("Upload Data")
 container_download_example = st.empty()
@@ -31,14 +33,33 @@ with st.form("Upload_data_form", clear_on_submit=False):
         "Select if selected reactors are to be kept or removed", ("Remove", "Keep")
     )
     if st.session_state.get("df_raw_od_data") is None:
-        reactors_to_filter = col2.text_input(
+        reactors_selected = col2.text_input(
             "Enter reactors to filter (comma separated)", ""
+        )
+    else:
+        # update possible reactors in form with available reactors
+        col2.empty()  # Clear previous text input
+        reactors_selected = col2.multiselect(
+            "Select reactors to filter",
+            options=df_raw_od_data["pioreactor_unit"].unique(),
         )
     # Options for handeling negative OD readings
     remove_zero = st.checkbox("Remove zero OD readings", value=False)
     round_time = st.slider("Round time to nearest minute", 0, 15, 5, step=1)
-    st.form_submit_button("Submit", type="primary")
-
+    min_date, max_date = None, None
+    if df_raw_od_data is not None:
+        min_date, max_date = st.select_slider(
+            "Select time window (inferred)",
+            options=df_raw_od_data["timestamp_rounded"],
+            value=(
+                df_raw_od_data["timestamp_rounded"].min(),
+                df_raw_od_data["timestamp_rounded"].max(),
+            ),
+        )
+    if df_raw_od_data is None:
+        st.form_submit_button("Process file", type="primary")
+    else:
+        st.form_submit_button("Re-process file", type="primary")
 ########################################################################################
 # Raw data and plots
 
@@ -66,13 +87,13 @@ if file is not None:
     )
     st.session_state["df_raw_od_data"] = df_raw_od_data
 
-    # update possible reactors in form with available reactors
-    col2.empty()  # Clear previous text input
-    reactors_selected = col2.multiselect(
-        "Select reactors to filter", options=df_raw_od_data["pioreactor_unit"].unique()
-    )
     # Filter reactors (all measurements from selected reactors)
     if reactors_selected:
+        st.write(f"Filtering reactors: {reactors_selected}")
+        if isinstance(reactors_selected, str):
+            # make it a list
+            reactors_selected = reactors_selected.split(",")
+            st.write(f"Filtering reactors: {reactors_selected}")
         mask = df_raw_od_data["pioreactor_unit"].isin(reactors_selected)
         if filter_option == "Remove":
             df_raw_od_data = df_raw_od_data.loc[~mask]
@@ -87,6 +108,7 @@ if file is not None:
 
     st.write(msg)
 
+    st.header(f"Wide OD data with rounded timestamps to {round_time} seconds")
     # wide data of raw data, maybe removing outliers?
     # can be used in plot for visualization,
     # and in curve fitting (where gaps would be interpolated)
@@ -95,41 +117,60 @@ if file is not None:
         columns="pioreactor_unit",
         values="od_reading",
     )
-    st.header(f"Wide OD data with rounded timestamps to {round_time} seconds")
-    window_str = "2025-06-17 09:44"
-    st.write(df_wide_raw_od_data.loc[window_str:])
+    if min_date:
+        df_wide_raw_od_data = df_wide_raw_od_data.loc[min_date:max_date]
+        st.info(f"Time range: {min_date} to {max_date}")
+
+    st.write(df_wide_raw_od_data)
     # st.write(df_wide_raw_od_data.describe())
+    ax = df_wide_raw_od_data.plot.line(style=".", ms=2, title="OD readings")
+    st.write(ax.get_figure())
 
     # outlier detection using IQR on rolling window: sets for center value of window a
     # true or false (this would be arguing maybe for long data format)
     # can be used in plot for visualization
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.rolling.html
-    st.header("Rolling median in window of 240s of OD data")
-    df_rolling = df_wide_raw_od_data.rolling(31, min_periods=5, center=True).median()
+    st.header(f"Rolling median in window of {rolling_window}s of OD data")
+    df_rolling = df_wide_raw_od_data.rolling(
+        rolling_window,
+        min_periods=min_periods,
+        center=True,
+    ).median()
     st.write(df_rolling)
 
-    # skip first N seconds or measurments
+    # skip first N seconds or measurements
     # set rolling median to x seconds
 
+    mask_extreme_values = df_wide_raw_od_data > df_wide_raw_od_data.quantile(0.99)
+    st.write(
+        f"### Number of extreme values detected: {mask_extreme_values.sum().sum()}"
+    )
+    st.write(mask_extreme_values.sum())
+    df_wide_raw_od_data_filtered = df_wide_raw_od_data.mask(mask_extreme_values)
 
     mask_outliers = (
-        df_wide_raw_od_data.ffill(limit=4)
-        .rolling(31, min_periods=4, center=True)
+        df_wide_raw_od_data_filtered.rolling(
+            rolling_window,
+            min_periods=min_periods,
+            center=True,
+            closed="both",
+        )
         .apply(piogrowth.filter.out_of_iqr)
         .astype(bool)
     )
     st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
-    st.write(mask_outliers.loc[window_str:])
+    st.write(mask_outliers)
 
     # apply mask to entire dataframe
-    ax = df_wide_raw_od_data.plot.line(style=".", title="OD readings")
-    st.write(ax.get_figure())
-    df_wide_raw_od_data_filtered = df_wide_raw_od_data.mask(mask_outliers)
+
+    df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_outliers)
     st.write("### df_wide_raw_od_data_filtered")
-    st.write(df_wide_raw_od_data_filtered.loc[window_str:])
+    st.write(df_wide_raw_od_data_filtered)
     st.write(df_wide_raw_od_data_filtered.describe())
     ax = df_wide_raw_od_data_filtered.plot.line(
-        style=".", title="OD readings with outliers removed"
+        style=".",
+        title="OD readings with outliers removed",
+        ms=2,
     )
     st.write(ax.get_figure())
 
@@ -158,7 +199,9 @@ if df_raw_od_data is not None:
         st.write(fig)
 
     st.markdown("### Plot smoothed data")
-    ax = df_rolling.plot.line(style=".", title="Smoothed OD readings for reactors")
+    ax = df_rolling.plot.line(
+        style=".", ms=2, title="Smoothed OD readings for reactors"
+    )
     st.write(ax.get_figure())
 
 st.markdown("### Store in QuervE format")
