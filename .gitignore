@@ -1,4 +1,7 @@
 *app_diagram*
-**/.DS_Store
+.DS_Store
 .Rhistory
 .pytest_cache
+*.egg-info
+*.pyc
+build
