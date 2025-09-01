@@ -61,7 +61,7 @@ if file is not None:
         f"{round_time}s"
     )
     st.session_state["df_raw_od_data"] = df_raw_od_data
-    
+
     # update possible reactors in form with available reactors
     col2.empty()  # Clear previous text input
     reactors_selected = col2.multiselect(
@@ -90,7 +90,8 @@ if file is not None:
         index="timestamp_rounded", columns="pioreactor_unit", values="od_reading"
     )
     st.header(f"Wide OD data with rounded timestamps to {round_time} seconds")
-    st.write(df_wide_raw_od_data)
+    window_str = "2025-06-17 09:44"
+    st.write(df_wide_raw_od_data.loc[window_str:])
     # st.write(df_wide_raw_od_data.describe())
 
     # outlier detection using IQR on rolling window: sets for center value of window a
@@ -98,10 +99,9 @@ if file is not None:
     # can be used in plot for visualization
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.rolling.html
     st.header("Rolling median in window of 240s of OD data")
-    df_rolling = df_wide_raw_od_data.rolling(
-        31, min_periods=5, center=True
-    ).median()
+    df_rolling = df_wide_raw_od_data.rolling(31, min_periods=5, center=True).median()
     st.write(df_rolling)
+
     # skip first N seconds or measurments
     # set rolling median to x seconds
     def out_of_iqr(s: pd.Series, factor: float = 1.5) -> pd.Series:
@@ -117,21 +117,26 @@ if file is not None:
         # center point out of IQR?
 
         return (center < lower_bound) | (center > upper_bound)
-    
-    mask_outliers = df_wide_raw_od_data.rolling(
-        31, min_periods=5 #, center=True
-    ).apply(out_of_iqr).astype(bool)
-    st.write(f"Number of outliers detected: {mask_outliers.sum().sum()}")
-    st.write(mask_outliers)
-    
+
+    mask_outliers = (
+        df_wide_raw_od_data.ffill(limit=4)
+        .rolling(41, min_periods=4, center=True)
+        .apply(out_of_iqr)
+        .astype(bool)
+    )
+    st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
+    st.write(mask_outliers.loc[window_str:])
+
     # apply mask to entire dataframe
-    ax = df_wide_raw_od_data.plot.line(style='.', title='OD readings')
+    ax = df_wide_raw_od_data.plot.line(style=".", title="OD readings")
     st.write(ax.get_figure())
     df_wide_raw_od_data_filtered = df_wide_raw_od_data.mask(mask_outliers)
-    st.write("df_wide_raw_od_data_filtered")
-    st.write(df_wide_raw_od_data_filtered)
+    st.write("### df_wide_raw_od_data_filtered")
+    st.write(df_wide_raw_od_data_filtered.loc[window_str:])
     st.write(df_wide_raw_od_data_filtered.describe())
-    ax = df_wide_raw_od_data_filtered.plot.line(style='.', title='OD readings with outliers removed')
+    ax = df_wide_raw_od_data_filtered.plot.line(
+        style=".", title="OD readings with outliers removed"
+    )
     st.write(ax.get_figure())
 
 else:
@@ -157,9 +162,9 @@ if df_raw_od_data is not None:
     fig = plot_growth_data(df_raw_od_data)
     with container_figures:
         st.write(fig)
-    
-    st.markdown('Plot smoothed data')
-    ax = df_rolling.plot.line(style='.', title='Smoothed OD readings for reactors')
+
+    st.markdown("### Plot smoothed data")
+    ax = df_rolling.plot.line(style=".", title="Smoothed OD readings for reactors")
     st.write(ax.get_figure())
 
 st.markdown("### Store in QuervE format")
