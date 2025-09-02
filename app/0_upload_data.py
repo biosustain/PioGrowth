@@ -108,8 +108,8 @@ if file is not None:
     # Handle negative values
     if remove_zero:
         mask_negative = df_raw_od_data["od_reading"] < 0
-        msg += f" - Setting {mask_negative.sum():,d} negative OD readings to zero.\n"
-        df_raw_od_data.loc[mask_negative, "od_reading"] = 0
+        msg += f" - Setting {mask_negative.sum():,d} negative OD readings to NaN.\n"
+        df_raw_od_data.loc[mask_negative, "od_reading"] = np.nan
 
     st.write(msg)
 
@@ -122,30 +122,25 @@ if file is not None:
         columns="pioreactor_unit",
         values="od_reading",
     )
+
+    # skip first or last measurements based on user input (after first loading the data)
     if min_date:
         df_wide_raw_od_data = df_wide_raw_od_data.loc[min_date:max_date]
         st.info(f"Time range: {min_date} to {max_date}")
 
     st.write(df_wide_raw_od_data)
     # st.write(df_wide_raw_od_data.describe())
-    ax = df_wide_raw_od_data.plot.line(style=".", ms=2, title="OD readings")
+    ax = df_wide_raw_od_data.plot.line(style=".", ms=2)
     st.write(ax.get_figure())
 
     # outlier detection using IQR on rolling window: sets for center value of window a
     # true or false (this would be arguing maybe for long data format)
     # can be used in plot for visualization
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.rolling.html
-    st.header(f"Rolling median in window of {rolling_window}s of OD data")
-    df_rolling = df_wide_raw_od_data.rolling(
-        rolling_window,
-        min_periods=min_periods,
-        center=True,
-    ).median()
-    st.write(df_rolling)
 
-    # skip first N seconds or measurements
+
     # set rolling median to x seconds
-
+    st.title("OD readings with outliers removed")
     mask_extreme_values = df_wide_raw_od_data > df_wide_raw_od_data.quantile(0.99)
     st.write(
         f"### Number of extreme values detected: {mask_extreme_values.sum().sum()}"
@@ -164,17 +159,18 @@ if file is not None:
         .astype(bool)
     )
     st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
-    st.write(mask_outliers)
+    st.write(" - removed extreme values of data before")
+    st.write(mask_outliers.sum())
 
     # apply mask to entire dataframe
 
     df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_outliers)
-    st.write("### df_wide_raw_od_data_filtered")
+    st.write("Filtered OD data:")
     st.write(df_wide_raw_od_data_filtered)
+    st.write("Summary statistics of filtered data per reactor:")
     st.write(df_wide_raw_od_data_filtered.describe())
     ax = df_wide_raw_od_data_filtered.plot.line(
         style=".",
-        title="OD readings with outliers removed",
         ms=2,
     )
     st.write(ax.get_figure())
@@ -203,9 +199,15 @@ if df_raw_od_data is not None:
     with container_figures:
         st.write(fig)
 
-    st.markdown("### Plot smoothed data")
+    st.header(f"Rolling median in window of {rolling_window}s using filtered OD data")
+    df_rolling = df_wide_raw_od_data_filtered.rolling(
+        rolling_window,
+        min_periods=min_periods,
+        center=True,
+    ).median()
+    st.write(df_rolling)
     ax = df_rolling.plot.line(
-        style=".", ms=2, title="Smoothed OD readings for reactors"
+        style=".", ms=2
     )
     st.write(ax.get_figure())
 
