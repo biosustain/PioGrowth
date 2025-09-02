@@ -85,7 +85,12 @@ if file is not None:
             f"{round_time}s",
         ),
     )
+    rerun = st.session_state.get("df_raw_od_data") is None
     st.session_state["df_raw_od_data"] = df_raw_od_data
+    # re-run now with data set
+    if rerun:
+        # ? replace with callback function that creates the input form?
+        st.rerun()
 
     # Filter reactors (all measurements from selected reactors)
     if reactors_selected:
