@@ -1,7 +1,9 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import streamlit as st
-from plots import plot_growth_data
+from plots import plot_growth_data_w_mask
 
 import piogrowth
 
@@ -174,6 +176,12 @@ if file is not None:
         ms=2,
     )
     st.write(ax.get_figure())
+    
+    masked = (mask_outliers | mask_extreme_values).convert_dtypes()
+    fpath = Path(f"playground/data/{custom_id}_masked_values.csv")
+    fpath.parent.mkdir(exist_ok=True, parents=True)
+    masked.to_csv(fpath)
+    df_wide_raw_od_data.to_csv(Path(f"playground/data/{custom_id}_raw_wide_data.csv"))
 
 else:
     with container_download_example:
@@ -195,7 +203,7 @@ with container_raw_data:
 
 if df_raw_od_data is not None:
     # Download options
-    fig = plot_growth_data(df_raw_od_data)
+    fig = plot_growth_data_w_mask(df_wide_raw_od_data, masked)
     with container_figures:
         st.write(fig)
 
