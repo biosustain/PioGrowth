@@ -3,12 +3,16 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import streamlit as st
+from buttons import download_data_button
 from plots import plot_growth_data_w_mask
 
 import piogrowth
 
 custom_id = st.session_state["custom_id"]
 df_raw_od_data = st.session_state["df_raw_od_data"]
+df_wide_raw_od_data = st.session_state.get("df_wide_raw_od_data")
+df_wide_raw_od_data_filtered = st.session_state.get("df_wide_raw_od_data_filtered")
+masked = st.session_state.get("masked", None)
 min_periods = st.session_state.get("min_periods", 5)
 
 st.title("Upload Data")
@@ -216,6 +220,9 @@ if file is not None:
     # fpath.parent.mkdir(exist_ok=True, parents=True)
     # masked.to_csv(fpath)
     # df_wide_raw_od_data.to_csv(Path(f"playground/data/{custom_id}_raw_wide_data.csv"))
+    st.session_state["df_wide_raw_od_data_filtered"] = df_wide_raw_od_data_filtered
+    st.session_state["df_wide_raw_od_data"] = df_wide_raw_od_data
+    st.session_state["masked"] = masked
 
 else:
     with container_download_example:
@@ -240,7 +247,7 @@ if df_raw_od_data is not None:
     fig = plot_growth_data_w_mask(df_wide_raw_od_data, masked)
     with container_figures:
         st.write(fig)
-
+    download_data_button("df_wide_raw_od_data_filtered", "Download filtered data")
     st.header(f"Rolling median in window of {rolling_window}s using filtered OD data")
     df_rolling = df_wide_raw_od_data_filtered.rolling(
         rolling_window,
