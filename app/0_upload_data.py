@@ -105,7 +105,7 @@ if custom_id:
     st.session_state["custom_id"] = custom_id
 
 
-if file is not None and button_pressed:
+if file is not None:
     df_raw_od_data = piogrowth.load.read_csv(file)
     msg = (
         f"- Loaded {df_raw_od_data.shape[0]:,d} rows "
