@@ -1,4 +1,5 @@
 import streamlit as st
+from ui_components import render_markdown
 
 import piogrowth
 
@@ -13,12 +14,9 @@ if st.session_state.get("df_raw_od_data") is None:
     st.session_state["df_raw_od_data"] = None
 
 
-
 # function creating the about page from a markdown file
 def render_about():
-    with open("app/markdowns/about.md", "r") as f:
-        about_content = f.read()
-    st.write(about_content)
+    render_markdown("app/markdowns/about.md")
 
 
 # Navigation

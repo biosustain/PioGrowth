@@ -1,9 +1,6 @@
-from pathlib import Path
-
-import numpy as np
 import pandas as pd
 import streamlit as st
-from buttons import download_data_button
+from buttons import download_data_button_in_sidebar
 from plots import plot_growth_data_w_mask
 
 import piogrowth
@@ -12,7 +9,8 @@ custom_id = st.session_state["custom_id"]
 df_raw_od_data = st.session_state["df_raw_od_data"]
 df_wide_raw_od_data = st.session_state.get("df_wide_raw_od_data")
 df_wide_raw_od_data_filtered = st.session_state.get("df_wide_raw_od_data_filtered")
-masked = st.session_state.get("masked", None)
+df_rolling = st.session_state.get("df_rolling")
+masked = st.session_state.get("masked")
 min_periods = st.session_state.get("min_periods", 5)
 
 st.title("Upload Data")
@@ -93,9 +91,9 @@ with st.form("Upload_data_form", clear_on_submit=False):
             ),
         )
     if df_raw_od_data is None:
-        st.form_submit_button("Process file", type="primary")
+        button_pressed = st.form_submit_button("Process file", type="primary")
     else:
-        st.form_submit_button("Re-process file", type="primary")
+        button_pressed = st.form_submit_button("Re-process file", type="primary")
 ########################################################################################
 # Raw data and plots
 
@@ -107,7 +105,7 @@ if custom_id:
     st.session_state["custom_id"] = custom_id
 
 
-if file is not None:
+if file is not None and button_pressed:
     df_raw_od_data = piogrowth.load.read_csv(file)
     msg = (
         f"- Loaded {df_raw_od_data.shape[0]:,d} rows "
@@ -215,7 +213,13 @@ if file is not None:
     df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_outliers)
 
     masked = masked.convert_dtypes()
+    download_data_button_in_sidebar(
+        "df_wide_raw_od_data_filtered",
+        "Download filtered data",
+    )
     st.write(msg)
+
+    # from pathlib import Path
     # fpath = Path(f"playground/data/{custom_id}_masked_values.csv")
     # fpath.parent.mkdir(exist_ok=True, parents=True)
     # masked.to_csv(fpath)
@@ -223,6 +227,13 @@ if file is not None:
     st.session_state["df_wide_raw_od_data_filtered"] = df_wide_raw_od_data_filtered
     st.session_state["df_wide_raw_od_data"] = df_wide_raw_od_data
     st.session_state["masked"] = masked
+
+    df_rolling = df_wide_raw_od_data_filtered.rolling(
+        rolling_window,
+        min_periods=min_periods,
+        center=True,
+    ).median()
+    st.session_state["df_rolling"] = df_rolling
 
 else:
     with container_download_example:
@@ -242,26 +253,25 @@ else:
 with container_raw_data:
     st.dataframe(df_raw_od_data, use_container_width=True)
 
-if df_raw_od_data is not None:
+if df_wide_raw_od_data is not None and masked is not None:
     # Download options
     fig = plot_growth_data_w_mask(df_wide_raw_od_data, masked)
     with container_figures:
         st.write(fig)
-    download_data_button("df_wide_raw_od_data_filtered", "Download filtered data")
     st.header(f"Rolling median in window of {rolling_window}s using filtered OD data")
-    df_rolling = df_wide_raw_od_data_filtered.rolling(
-        rolling_window,
-        min_periods=min_periods,
-        center=True,
-    ).median()
+
+
+if df_rolling is not None:
+    st.session_state["df_rolling"] = df_rolling
+
     st.write(df_rolling)
     ax = df_rolling.plot.line(style=".", ms=2)
     st.write(ax.get_figure())
+    st.dataframe(df_rolling.isna().sum())
 
 st.markdown("### Store in QuervE format")
-
 convert = st.button("Store in QuervE format", key="store_in_querve")
 
 if convert:
-    st.warning("fct to convert to QuervE.")
+    st.warning("fct to convert to QuervE not implemented.")
     # store in state

@@ -1,9 +1,9 @@
 import streamlit as st
 
 
-def is_data_available():
+def is_data_available(key):
     """Check that pioreactor data was uploaded."""
-    ret = st.session_state.get("df_raw_od_data") is not None
+    ret = st.session_state.get(key) is not None
     return ret
 
 
@@ -20,3 +20,10 @@ def show_warning_to_upload_data():
                 label="Upload Data",
                 help="Go to upload data page.",
             )
+
+
+def render_markdown(fpath: str):
+    """Open and write markdown content from file."""
+    with open(fpath, "r") as f:
+        about_content = f.read()
+    st.write(about_content)

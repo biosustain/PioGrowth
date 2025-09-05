@@ -1,10 +1,10 @@
 import pandas as pd
 import streamlit as st
-from ui_components import is_data_available, show_warning_to_upload_data
+from ui_components import show_warning_to_upload_data
 
 st.title("Growth Analysis of turbidostat mode")
 
-no_data_uploaded = not is_data_available()
+no_data_uploaded = st.session_state.get("df_rolling") is None
 
 if no_data_uploaded:
     show_warning_to_upload_data()
