@@ -57,14 +57,22 @@ if form_submit and not no_data_uploaded:
         df_rolling,
         smoothing_factor=smoothing_range.iloc[0],
     )
+
+    titles = [
+        f"{col} - max $\\mu$ {mu:<.5f} at {idx}"
+        for col, mu, idx in zip(
+            df_rolling.columns, derivatives.max(), derivatives.idxmax()
+        )
+    ]
+
     st.title("Fitted splines")
     st.dataframe(splines, use_container_width=True)
-    fig, axes = plot_fitted_data(splines)
+    fig, axes = plot_fitted_data(splines, titles=titles)
     st.write(fig)
 
     st.title("First order derivatives")
     st.dataframe(derivatives, use_container_width=True)
-    fig, axes = plot_derivatives(derivatives=derivatives)
+    fig, axes = plot_derivatives(derivatives=derivatives, titles=titles)
     st.write(fig)
 
 # info on used methods
