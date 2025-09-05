@@ -1,18 +1,22 @@
 import streamlit as st
-from plots import plot_growth_data
-from ui_components import is_data_available, show_warning_to_upload_data
+from ui_components import render_markdown, show_warning_to_upload_data
+
+from piogrowth.fit import fit_spline_and_derivatives_no_nan, smoothing_range
 
 ########################################################################################
 # page
 
 st.header("Batch Growth Analysis")
 
-no_data_uploaded = not is_data_available()
+no_data_uploaded = st.session_state.get("df_rolling") is None
 
 if no_data_uploaded:
     show_warning_to_upload_data()
 
+st.title("Data used for analysis (rolling median data):")
 view_data_module = st.empty()
+with view_data_module:
+    st.write("No data available for analysis. Please upload first.")
 
 with st.form("Batch_processing_options", enter_to_submit=True):
     correction_strategy = st.radio(
@@ -36,12 +40,25 @@ with st.form("Batch_processing_options", enter_to_submit=True):
     )
     form_submit = st.form_submit_button("Run Analysis", type="primary")
 
+if not no_data_uploaded:
+    with view_data_module:
+        st.dataframe(st.session_state["df_rolling"], use_container_width=True)
+
 # Process button
 if form_submit and not no_data_uploaded:
     st.session_state.process_batch = True
-    df_raw_od_data = st.session_state["df_wide_raw_od_data_filtered"]
-    with view_data_module:
-        st.dataframe(df_raw_od_data, use_container_width=True)
+    df_rolling = st.session_state["df_rolling"].interpolate()
 
-    # fig = plot_growth_data(df_raw_od_data)
-    # st.write(fig)
+    st.dataframe(smoothing_range(len(df_rolling)))
+
+    splines, derivative = fit_spline_and_derivatives_no_nan(
+        df_rolling, smoothing_factor=250
+    )
+    st.title("Fitted splines")
+    st.dataframe(splines, use_container_width=True)
+
+    st.title("First order derivatives")
+    st.dataframe(derivative, use_container_width=True)
+
+# info on used methods
+render_markdown("app/markdowns/curve_fitting.md")
