@@ -3,7 +3,7 @@ import pandas as pd
 from scipy.interpolate import make_splrep, splev
 
 
-def smoothing_range(m: int):
+def get_smoothing_range(m: int):
     """
     Compute the smoothing range for B-spline fitting in scipy interpolate functionality.
     """

@@ -1,7 +1,8 @@
 import streamlit as st
+from plots import plot_derivatives, plot_fitted_data
 from ui_components import render_markdown, show_warning_to_upload_data
 
-from piogrowth.fit import fit_spline_and_derivatives_no_nan, smoothing_range
+from piogrowth.fit import fit_spline_and_derivatives_no_nan, get_smoothing_range
 
 ########################################################################################
 # page
@@ -48,17 +49,23 @@ if not no_data_uploaded:
 if form_submit and not no_data_uploaded:
     st.session_state.process_batch = True
     df_rolling = st.session_state["df_rolling"].interpolate()
+    smoothing_range = get_smoothing_range(len(df_rolling))
+    st.write("Smoothing parameter range as suggested by scipy:")
+    st.dataframe(smoothing_range)
 
-    st.dataframe(smoothing_range(len(df_rolling)))
-
-    splines, derivative = fit_spline_and_derivatives_no_nan(
-        df_rolling, smoothing_factor=250
+    splines, derivatives = fit_spline_and_derivatives_no_nan(
+        df_rolling,
+        smoothing_factor=smoothing_range.iloc[0],
     )
     st.title("Fitted splines")
     st.dataframe(splines, use_container_width=True)
+    fig, axes = plot_fitted_data(splines)
+    st.write(fig)
 
     st.title("First order derivatives")
-    st.dataframe(derivative, use_container_width=True)
+    st.dataframe(derivatives, use_container_width=True)
+    fig, axes = plot_derivatives(derivatives=derivatives)
+    st.write(fig)
 
 # info on used methods
 render_markdown("app/markdowns/curve_fitting.md")
