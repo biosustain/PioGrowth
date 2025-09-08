@@ -50,8 +50,8 @@ with st.form("Upload_data_form", clear_on_submit=False):
     # Options for handeling negative OD readings
     st.write("Data filtering options:")
     filter_columns = st.columns(3)
-    remove_zero = filter_columns[0].checkbox(
-        "Remove zero OD readings",
+    remove_negative = filter_columns[0].checkbox(
+        "Remove negative OD readings",
         value=False,
     )
     remove_max = filter_columns[1].checkbox(
@@ -164,7 +164,7 @@ if file is not None:
     df_wide_raw_od_data_filtered = df_wide_raw_od_data.copy()
 
     # Handle negative values
-    if remove_zero:
+    if remove_negative:
         mask_negative = df_wide_raw_od_data_filtered < 0
         msg += (
             f"- Setting {mask_negative.sum().sum():,d} negative OD readings to NaN.\n"
