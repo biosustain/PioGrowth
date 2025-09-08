@@ -90,12 +90,14 @@ with st.form("Upload_data_form", clear_on_submit=False):
                 df_raw_od_data["timestamp_rounded"].max(),
             ),
         )
-    if df_raw_od_data is None:
+    if file is None:
         button_pressed = st.form_submit_button("Process file", type="primary")
     else:
         button_pressed = st.form_submit_button("Re-process file", type="primary")
 ########################################################################################
 # Raw data and plots
+
+extra_warn = st.empty()
 
 st.header("Raw OD data")
 container_raw_data = st.empty()
@@ -236,6 +238,8 @@ if file is not None:
     st.session_state["df_rolling"] = df_rolling
 
 else:
+    if button_pressed:
+        extra_warn.warning("No data uploaded.")
     with container_download_example:
         columns = st.columns([1, 2])
         columns[0].warning("no data uploaded.")
