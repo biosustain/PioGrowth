@@ -28,7 +28,7 @@ with st.form("Batch_processing_options", enter_to_submit=True):
     correction_strategy = st.radio(
         "Negative correction strategy", ("Median", "Qurve(OD + |min(OD)|)")
     )
-    spline_smoothing_values = st.slider(
+    spline_smoothing_value = st.slider(
         "Smoothing of the spline fitted to OD values (zero means no smoothing). "
         "Range suggested using scipy, see "
         "[docs](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.make_splrep.html)",
@@ -59,7 +59,7 @@ if form_submit and not no_data_uploaded:
 
     splines, derivatives = fit_spline_and_derivatives_no_nan(
         df_rolling,
-        smoothing_factor=smoothing_range.iloc[0],
+        smoothing_factor=spline_smoothing_value,
     )
 
     titles = [
