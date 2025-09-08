@@ -46,7 +46,9 @@ with st.form("Upload_data_form", clear_on_submit=False):
             "Select reactors to filter",
             options=df_raw_od_data["pioreactor_unit"].unique(),
         )
-    round_time = st.slider("Round time to nearest minute", 0, 15, 5, step=1)
+    round_time = st.slider(
+        "Round time to nearest second (defining timesteps)", 0, 15, 5, step=1
+    )
     # Options for handeling negative OD readings
     st.write("Data filtering options:")
     filter_columns = st.columns(3)
@@ -145,11 +147,18 @@ if file is not None:
     # wide data of raw data
     # - can be used in plot for visualization,
     # - and in curve fitting (where gaps would be interpolated)
-    df_wide_raw_od_data = df_raw_od_data.pivot(
-        index="timestamp_rounded",
-        columns="pioreactor_unit",
-        values="od_reading",
-    )
+    try:
+        df_wide_raw_od_data = df_raw_od_data.pivot(
+            index="timestamp_rounded",
+            columns="pioreactor_unit",
+            values="od_reading",
+        )
+    except ValueError:
+        st.error(
+            "Rounding produced duplicated timepoints in reactors,"
+            f" please decrease below: {round_time} seconds."
+        )
+        st.stop()
 
     # skip first or last measurements based on user input (after first loading the data)
     # ! won't be plotted as filtered data
