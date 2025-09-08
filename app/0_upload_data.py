@@ -67,6 +67,10 @@ with st.form("Upload_data_form", clear_on_submit=False):
         0.99,
         step=0.01,
     )
+    filter_by_iqr_range = filter_columns[2].checkbox(
+        "Remove outliers by IQR",
+        value=False,
+    )
     iqr_range_value = filter_columns[2].slider(
         "IQR range for outlier removal",
         1.0,
@@ -204,24 +208,25 @@ if file is not None:
     # can be used in plot for visualization
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.rolling.html
 
-    mask_outliers = (
-        df_wide_raw_od_data_filtered.rolling(
-            rolling_window,
-            min_periods=min_periods,
-            center=True,
-            closed="both",
+    if filter_by_iqr_range:
+        mask_outliers = (
+            df_wide_raw_od_data_filtered.rolling(
+                rolling_window,
+                min_periods=min_periods,
+                center=True,
+                closed="both",
+            )
+            .apply(piogrowth.filter.out_of_iqr, kwargs={"factor": iqr_range_value})
+            .astype(bool)
         )
-        .apply(piogrowth.filter.out_of_iqr, kwargs={"factor": iqr_range_value})
-        .astype(bool)
-    )
-    # st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
-    msg += f"- Number of outliers detected: {mask_outliers.sum().sum()}\n"
-    msg += f"   - in detail: {mask_outliers.sum().to_dict()}\n"
-    masked = masked | mask_outliers
+        # st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
+        msg += f"- Number of outliers detected: {mask_outliers.sum().sum()}\n"
+        msg += f"   - in detail: {mask_outliers.sum().to_dict()}\n"
+        masked = masked | mask_outliers
 
-    # apply mask to entire dataframe
+        # apply mask to entire dataframe
 
-    df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_outliers)
+        df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_outliers)
 
     masked = masked.convert_dtypes()
     download_data_button_in_sidebar(
@@ -280,7 +285,6 @@ if df_rolling is not None:
     st.write(df_rolling)
     ax = df_rolling.plot.line(style=".", ms=2)
     st.write(ax.get_figure())
-    st.dataframe(df_rolling.isna().sum())
 
 st.markdown("### Store in QuervE format")
 convert = st.button("Store in QuervE format", key="store_in_querve")
