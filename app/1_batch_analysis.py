@@ -73,6 +73,7 @@ if form_submit and not no_data_uploaded:
     with st.expander("Show fitted splines data:"):
         st.dataframe(splines, use_container_width=True)
     fig, axes = plot_fitted_data(splines, titles=titles)
+    axes = axes.flatten()
     if not remove_raw_data:
         for col, ax in zip(df_rolling.columns, axes.flatten()):
             df_rolling[col].plot(
@@ -84,6 +85,7 @@ if form_submit and not no_data_uploaded:
     with st.expander("Show first derivative data:"):
         st.dataframe(derivatives, use_container_width=True)
     fig, axes = plot_derivatives(derivatives=derivatives, titles=titles)
+    axes = axes.flatten()
     st.write(fig)
 
 # info on used methods

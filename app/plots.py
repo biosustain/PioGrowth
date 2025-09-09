@@ -98,8 +98,8 @@ def plot_fitted_data(splines, titles=None):
         legend=False,
         figsize=(10, rows * 2),
     )
-    axes = axes.flatten()
-    fig = axes[-1].get_figure()
+    _axes = axes.flatten()
+    fig = _axes[-1].get_figure()
     fig.tight_layout()
     return fig, axes
 
@@ -119,13 +119,13 @@ def plot_derivatives(derivatives: pd.DataFrame, titles=None) -> plt.Figure:
         sharey=False,
         figsize=(10, rows * 2),
     )
-    axes = axes.flatten()
+    _axes = axes.flatten()
     decimal_place = int(np.log10(derivatives.max().min()) - 1)
     if decimal_place < 1:
         decimal_place = f"%.{np.abs(decimal_place)}f"
     else:
         decimal_place = "%.1f"
-    for ax in axes:
+    for ax in _axes:
         _ = ax.yaxis.set_major_formatter(FormatStrFormatter(decimal_place))
     fig = ax.get_figure()
     fig.tight_layout()
