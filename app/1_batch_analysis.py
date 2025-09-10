@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
@@ -28,9 +29,10 @@ with view_data_module:
 
 
 with st.form("Batch_processing_options", enter_to_submit=True):
-    # correction_strategy = st.radio(
-    #     "Negative correction strategy", ("Median", "Qurve(OD + |min(OD)|)")
-    # )
+    apply_log = st.checkbox(
+        "Apply shift to minimum value from above zero and log transformation to data before fitting splines: $\ln(y - \max(\min(\\text{OD}_{\\text{reactor}}), 0) + 0.001)$",
+        value=False,
+    )
     spline_smoothing_value = st.slider(
         "Smoothing of the spline fitted to OD values (zero means no smoothing). "
         "Range suggested using scipy, see "
@@ -47,7 +49,7 @@ with st.form("Batch_processing_options", enter_to_submit=True):
     st.write("#### Plotting options:")
     remove_raw_data = st.checkbox("Remove underlying data from plots", value=True)
     add_tangent_of_mu_max = st.checkbox(
-        "Add tangent of µmax to growth plots", value=False
+        "Add tangent of µmax to growth plots of fitted splines", value=False
     )
     form_submit = st.form_submit_button("Run Analysis", type="primary")
 
@@ -58,6 +60,18 @@ if not no_data_uploaded:
 
 # Process button
 if form_submit and not no_data_uploaded:
+    Y_LABEL = "OD readings"
+    if apply_log:
+        Y_LABEL = "ln(OD readings)"
+
+        def log_transform(s):
+            s_min = s.min()
+            if s_min < 0:
+                s = s - s_min
+
+            return np.log(s + 0.001)
+
+        df_rolling = df_rolling.apply(log_transform)
     splines, derivatives = fit_spline_and_derivatives_no_nan(
         df_rolling,
         smoothing_factor=spline_smoothing_value,
@@ -99,7 +113,7 @@ if form_submit and not no_data_uploaded:
     st.title("Fitted splines")
     with st.expander("Show fitted splines data:"):
         st.dataframe(splines, use_container_width=True)
-    fig, axes = plot_fitted_data(splines, titles=titles)
+    fig, axes = plot_fitted_data(splines, titles=titles, ylabel=Y_LABEL)
     axes = axes.flatten()
     if not remove_raw_data:
         for col, ax in zip(df_rolling.columns, axes):

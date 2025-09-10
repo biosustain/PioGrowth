@@ -83,7 +83,7 @@ def plot_growth_data_w_mask(
     return fig
 
 
-def plot_fitted_data(splines, titles=None):
+def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
     rows = (splines.shape[-1] + 1) // 2
     axes = splines.plot.line(
         style=".",
@@ -93,7 +93,7 @@ def plot_fitted_data(splines, titles=None):
         sharex=True,
         sharey=True,
         title=titles,
-        ylabel="OD readings",
+        ylabel=ylabel,
         xlabel="timepoints (rounded)",
         legend=False,
         figsize=(10, rows * 2),
