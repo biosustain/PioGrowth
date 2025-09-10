@@ -28,9 +28,9 @@ with view_data_module:
 
 
 with st.form("Batch_processing_options", enter_to_submit=True):
-    correction_strategy = st.radio(
-        "Negative correction strategy", ("Median", "Qurve(OD + |min(OD)|)")
-    )
+    # correction_strategy = st.radio(
+    #     "Negative correction strategy", ("Median", "Qurve(OD + |min(OD)|)")
+    # )
     spline_smoothing_value = st.slider(
         "Smoothing of the spline fitted to OD values (zero means no smoothing). "
         "Range suggested using scipy, see "
@@ -46,9 +46,9 @@ with st.form("Batch_processing_options", enter_to_submit=True):
     # User inputs for analysis
     st.write("#### Plotting options:")
     remove_raw_data = st.checkbox("Remove underlying data from plots", value=True)
-    add_tangent_of_mu_max = st.checkbox(
-        "Add tangent of µmax to growth plots", value=False
-    )
+    # add_tangent_of_mu_max = st.checkbox(
+    #     "Add tangent of µmax to growth plots", value=False
+    # )
     form_submit = st.form_submit_button("Run Analysis", type="primary")
 
 if not no_data_uploaded:
