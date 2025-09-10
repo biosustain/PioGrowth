@@ -1,4 +1,5 @@
 import streamlit as st
+from buttons import download_data_button_in_sidebar
 from plots import plot_derivatives, plot_fitted_data
 from ui_components import render_markdown, show_warning_to_upload_data
 
@@ -55,11 +56,22 @@ if not no_data_uploaded:
 
 # Process button
 if form_submit and not no_data_uploaded:
-    st.session_state.process_batch = True
-
     splines, derivatives = fit_spline_and_derivatives_no_nan(
         df_rolling,
         smoothing_factor=spline_smoothing_value,
+    )
+    st.session_state["splines"] = splines
+    st.session_state["derivatives"] = derivatives
+
+    download_data_button_in_sidebar(
+        "derivatives",
+        label="Download derivatives",
+        file_name="derivatives.csv",
+    )
+    download_data_button_in_sidebar(
+        "splines",
+        label="Download fitted splines",
+        file_name="splines.csv",
     )
 
     maxima = derivatives.max()
