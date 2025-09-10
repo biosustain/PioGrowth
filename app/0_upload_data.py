@@ -229,10 +229,7 @@ if file is not None:
         df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_outliers)
 
     masked = masked.convert_dtypes()
-    download_data_button_in_sidebar(
-        "df_wide_raw_od_data_filtered",
-        "Download filtered data",
-    )
+
     st.write(msg)
 
     # from pathlib import Path
@@ -255,9 +252,11 @@ else:
     if button_pressed:
         extra_warn.warning("No data uploaded.")
     with container_download_example:
-        columns = st.columns([1, 2])
-        columns[0].warning("no data uploaded.")
-        columns[1].download_button(
+        col0, col1 = st.columns(2)
+        # populate columns (could be outside of with statement)
+        col0.warning("no data uploaded.")
+        # clicking triggers a re-run, but that is fast if no data was previously uploaded
+        col1.download_button(
             label="Download example  pioreactor experiment in csv format.",
             data=pd.read_csv("data/example_batch_data_od_readings.csv").to_csv(
                 index=False
@@ -267,7 +266,6 @@ else:
             mime="text/csv",
         )
 
-
 with container_raw_data:
     st.dataframe(df_raw_od_data, use_container_width=True)
 
@@ -276,15 +274,31 @@ if df_wide_raw_od_data is not None and masked is not None:
     fig = plot_growth_data_w_mask(df_wide_raw_od_data, masked)
     with container_figures:
         st.write(fig)
-    st.header(f"Rolling median in window of {rolling_window}s using filtered OD data")
+
+if st.session_state.get("df_wide_raw_od_data") is not None:
+    download_data_button_in_sidebar(
+        "df_wide_raw_od_data",
+        "Download raw data",
+        file_name="data_wide_rounded_timestamps.csv",
+    )
+if st.session_state.get("df_wide_raw_od_data_filtered") is not None:
+    download_data_button_in_sidebar(
+        "df_wide_raw_od_data_filtered",
+        "Download filtered data",
+        file_name="filtered_data_wide_rounded_timestamps.csv",
+    )
 
 
 if df_rolling is not None:
-    st.session_state["df_rolling"] = df_rolling
-
+    st.header(f"Rolling median in window of {rolling_window}s using filtered OD data")
     st.write(df_rolling)
     ax = df_rolling.plot.line(style=".", ms=2)
     st.write(ax.get_figure())
+    download_data_button_in_sidebar(
+        "df_rolling",
+        "Download rolling median data",
+        file_name="rolling_median_on_filtered_wide_data_with_rounded_timestamps.csv",
+    )
 
 st.markdown("### Store in QuervE format")
 convert = st.button("Store in QuervE format", key="store_in_querve")

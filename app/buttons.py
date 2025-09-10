@@ -5,7 +5,22 @@ def convert_data(df):
     return df.to_csv(index=True).encode("utf-8")
 
 
-def download_data_button_in_sidebar(session_key: str, label: str = "Download data"):
+@st.fragment
+def create_download_button(label: str, data: str, file_name: str, disabled: bool):
+    st.download_button(
+        label=label,
+        data=data,
+        file_name=file_name,
+        mime="text/csv",
+        disabled=disabled,
+    )
+
+
+def download_data_button_in_sidebar(
+    session_key: str,
+    label: str = "Download data",
+    file_name: str = "filtered_data.csv",
+):
     """Create a download button associated with a key in session state
     in the sidebar.
 
@@ -18,10 +33,10 @@ def download_data_button_in_sidebar(session_key: str, label: str = "Download dat
     else:
         disabled = True
         data = ""
-    st.sidebar.download_button(
-        label,
-        data=data,
-        file_name="filtered_data.csv",
-        mime="text/csv",
-        disabled=disabled,
-    )
+    with st.sidebar:
+        create_download_button(
+            label=label,
+            data=data,
+            file_name=file_name,
+            disabled=disabled,
+        )
