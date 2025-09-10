@@ -4,6 +4,7 @@ from buttons import download_data_button_in_sidebar
 from plots import plot_derivatives, plot_fitted_data
 from ui_components import render_markdown, show_warning_to_upload_data
 
+from piogrowth.durations import find_max_range
 from piogrowth.fit import fit_spline_and_derivatives_no_nan, get_smoothing_range
 
 ########################################################################################
@@ -61,6 +62,10 @@ if form_submit and not no_data_uploaded:
         df_rolling,
         smoothing_factor=spline_smoothing_value,
     )
+    prop_high = high_percentage_treshold = high_percentage_treshold / 100
+    cutoffs = derivatives.max() * prop_high
+    in_high_growth = derivatives.ge(cutoffs, axis=1)
+    max_time_range = in_high_growth.apply(find_max_range, axis=0).T.convert_dtypes()
     st.session_state["splines"] = splines
     st.session_state["derivatives"] = derivatives
 
@@ -83,10 +88,12 @@ if form_submit and not no_data_uploaded:
         for col, mu, idx in zip(df_rolling.columns, maxima, maxima_idx)
     ]
 
-    msg = """
+    msg = f"""
     In plots the maximum change in OD (fitted) is indicated by the red dashed lines.
     The maximum change in OD (fitted) and it's timepoint is mentioned in the title of
-    each plot.
+    each plot. The selected range within the **gray shaded area** indicates the time
+    period where the growth rate was above {prop_high:.0%} of the maximum growth rate - if
+    the this range was continous and had no spikes.
     """
     st.markdown(msg)
     st.title("Fitted splines")
@@ -101,6 +108,11 @@ if form_submit and not no_data_uploaded:
             )
     for ax, x in zip(axes, maxima_idx):
         ax.axvline(x=x, color="red", linestyle="--")
+    for ax, col in zip(axes, derivatives.columns):
+        row = max_time_range.loc[col]
+        if row.is_continues:
+            # only plot span if the time range is continous (no jumps)
+            ax.axvspan(row.start, row.end, color="gray", alpha=0.2)
     st.write(fig)
 
     st.title("First order derivatives")
@@ -110,11 +122,15 @@ if form_submit and not no_data_uploaded:
     axes = axes.flatten()
     for ax, x in zip(axes, maxima_idx):
         ax.axvline(x=x, color="red", linestyle="--")
+    for ax, col in zip(axes, derivatives.columns):
+        row = max_time_range.loc[col]
+        if row.is_continues:
+            # only plot span if the time range is continous (no jumps)
+            ax.axvspan(row.start, row.end, color="gray", alpha=0.2)
     st.write(fig)
 
     batch_analysis_summary_df = pd.DataFrame(
         {
-            "reactor": df_rolling.columns,
             "max_od_timepoint_fitted": maxima_idx,
             "max_change_in_od": maxima,
             "reactor_od_rolling_median": [
@@ -128,9 +144,19 @@ if form_submit and not no_data_uploaded:
             "reactor_od_fitted_spline": [
                 splines.loc[idx, col] for idx, col in zip(maxima_idx, maxima_idx.index)
             ],
-            # "last_high_mu_max_time": [],
-            # f"total_high_mu_max_time_{high_percentage_treshold:d%}": [],
         }
+    )
+    # rename maximum range columns and add to summary table
+    max_time_range = max_time_range.rename(
+        columns={
+            "start": f"max{prop_high:.0%}_growth_start",
+            "end": f"max{prop_high:.0%}_growth_end",
+            "duration": f"max{prop_high:.0%}_growth_duration",
+            "is_continues": f"max{prop_high:.0%}_growth_is_continues",
+        }
+    )
+    batch_analysis_summary_df = pd.concat(
+        [batch_analysis_summary_df, max_time_range], axis=1
     )
     st.dataframe(batch_analysis_summary_df, use_container_width=True)
     st.session_state["batch_analysis_summary_df"] = batch_analysis_summary_df
