@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
 from plots import plot_derivatives, plot_fitted_data
@@ -110,6 +111,34 @@ if form_submit and not no_data_uploaded:
     for ax, x in zip(axes, maxima_idx):
         ax.axvline(x=x, color="red", linestyle="--")
     st.write(fig)
+
+    batch_analysis_summary_df = pd.DataFrame(
+        {
+            "reactor": df_rolling.columns,
+            "max_od_timepoint_fitted": maxima_idx,
+            "max_change_in_od": maxima,
+            "reactor_od_rolling_median": [
+                df_rolling.loc[idx, col]
+                for idx, col in zip(maxima_idx, maxima_idx.index)
+            ],
+            "reactor_od_in_filtered_data": [
+                st.session_state["df_wide_raw_od_data_filtered"].loc[idx, col]
+                for idx, col in zip(maxima_idx, maxima_idx.index)
+            ],
+            "reactor_od_fitted_spline": [
+                splines.loc[idx, col] for idx, col in zip(maxima_idx, maxima_idx.index)
+            ],
+            # "last_high_mu_max_time": [],
+            # f"total_high_mu_max_time_{high_percentage_treshold:d%}": [],
+        }
+    )
+    st.dataframe(batch_analysis_summary_df, use_container_width=True)
+    st.session_state["batch_analysis_summary_df"] = batch_analysis_summary_df
+    download_data_button_in_sidebar(
+        "batch_analysis_summary_df",
+        label="Download summary",
+        file_name="batch_analysis_summary_df.csv",
+    )
 
 # info on used methods
 render_markdown("app/markdowns/curve_fitting.md")
