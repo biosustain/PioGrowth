@@ -46,9 +46,9 @@ with st.form("Batch_processing_options", enter_to_submit=True):
     # User inputs for analysis
     st.write("#### Plotting options:")
     remove_raw_data = st.checkbox("Remove underlying data from plots", value=True)
-    # add_tangent_of_mu_max = st.checkbox(
-    #     "Add tangent of µmax to growth plots", value=False
-    # )
+    add_tangent_of_mu_max = st.checkbox(
+        "Add tangent of µmax to growth plots", value=False
+    )
     form_submit = st.form_submit_button("Run Analysis", type="primary")
 
 if not no_data_uploaded:
@@ -93,7 +93,7 @@ if form_submit and not no_data_uploaded:
     The maximum change in OD (fitted) and it's timepoint is mentioned in the title of
     each plot. The selected range within the **gray shaded area** indicates the time
     period where the growth rate was above {prop_high:.0%} of the maximum growth rate - if
-    the this range was continous and had no spikes.
+    this range was continous and had no spikes.
     """
     st.markdown(msg)
     st.title("Fitted splines")
@@ -113,6 +113,17 @@ if form_submit and not no_data_uploaded:
         if row.is_continues:
             # only plot span if the time range is continous (no jumps)
             ax.axvspan(row.start, row.end, color="gray", alpha=0.2)
+    if add_tangent_of_mu_max:
+        for ax, col in zip(axes, derivatives.columns):
+            b = maxima.loc[col]
+            x_center = maxima_idx.loc[col]
+            y_center = splines.loc[x_center, col]
+            x = (derivatives.index - x_center).total_seconds().to_numpy()
+            y = b * x + y_center
+            mask = (y < splines[col].max()) & (y > splines[col].min())
+            # only plot tangent if the time range is continous (no jumps)
+            ax.plot(derivatives.index[mask], y[mask], color="blue", linestyle="--")
+        del x, y, b, x_center, y_center, mask
     st.write(fig)
 
     st.title("First order derivatives")
