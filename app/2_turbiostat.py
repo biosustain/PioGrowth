@@ -1,7 +1,16 @@
+import functools
+
 import pandas as pd
 import streamlit as st
+from plots import plot_growth_data_w_peaks
 from ui_components import show_warning_to_upload_data
 
+from piogrowth.turbistat import detect_peaks
+
+## Logic and PLOTTING
+
+
+## UI
 st.title("Growth Analysis of turbidostat mode")
 
 no_data_uploaded = st.session_state.get("df_rolling") is None
@@ -18,18 +27,34 @@ st.markdown(
 
 with st.form(key="turbidostat_form"):
     turbiostat_meta = st.file_uploader(
-        "Upload metadata of dilution events.", type=["csv"]
-    )
-    st.text_input(
-        label=(
-            "Reactor Group - Members of a group are comma separated (`,`) and groups "
-            "are semicolon (`;`) separated: e.g. `P01,P02,P03;P04,P05,P06` "
-            "is two groups with each three unique reactors associated."
+        (
+            "Upload metadata of dilution events."
+            "Optional and only used for verification of peaks detected at the moment."
         ),
-        value=st.session_state.get("turbiostat_text_input", ""),
+        type=["csv"],
+    )
+
+    minimum_distance = st.number_input(
+        label="Minimum distance between peaks (in number of samples)",
+        min_value=3,
+        value=300,
+        step=1,
+        key="turbiostat_distance",
     )
     submitted = st.form_submit_button("Analyse")
 
 if submitted:
-    df_meta = pd.read_csv(turbiostat_meta)
-    st.write(df_meta)
+    if turbiostat_meta is not None:
+        df_meta = pd.read_csv(turbiostat_meta)
+        st.write(df_meta)
+
+    df_rolling = st.session_state.get("df_rolling")
+
+    _detect_peaks = functools.partial(detect_peaks, distance=minimum_distance)
+    peaks = df_rolling.apply(_detect_peaks)
+
+    st.write("## Detected Peaks")
+    st.write(peaks)
+
+    fig = plot_growth_data_w_peaks(df_rolling, peaks)
+    st.pyplot(fig)
