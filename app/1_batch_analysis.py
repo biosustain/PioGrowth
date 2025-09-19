@@ -30,7 +30,7 @@ with view_data_module:
 
 with st.form("Batch_processing_options", enter_to_submit=True):
     apply_log = st.checkbox(
-        "Apply shift to minimum value from above zero and log transformation to data before fitting splines: $\ln(y - \max(\min(\\text{OD}_{\\text{reactor}}), 0) + 0.001)$",
+        "Apply shift to minimum value from above zero and log transformation to data before fitting splines: $\\ln(y - \\max(\\min(\\text{OD}_{\\text{reactor}}), 0) + 0.001)$",
         value=False,
     )
     spline_smoothing_value = st.slider(
