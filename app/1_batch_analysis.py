@@ -6,7 +6,7 @@ from plots import plot_derivatives, plot_fitted_data
 from ui_components import render_markdown, show_warning_to_upload_data
 
 from piogrowth.durations import find_max_range
-from piogrowth.fit import fit_spline_and_derivatives_no_nan, get_smoothing_range
+from piogrowth.fit import fit_spline_and_derivatives_one_batch, get_smoothing_range
 
 ########################################################################################
 # page
@@ -19,7 +19,7 @@ if no_data_uploaded:
     show_warning_to_upload_data()
     st.stop()
 
-df_rolling = st.session_state["df_rolling"].interpolate()
+df_rolling = st.session_state["df_rolling"]  # .interpolate()
 
 smoothing_range = get_smoothing_range(len(df_rolling))
 
@@ -72,7 +72,7 @@ if form_submit and not no_data_uploaded:
             return np.log(s + 0.001)
 
         df_rolling = df_rolling.apply(log_transform)
-    splines, derivatives = fit_spline_and_derivatives_no_nan(
+    splines, derivatives = fit_spline_and_derivatives_one_batch(
         df_rolling,
         smoothing_factor=spline_smoothing_value,
     )
