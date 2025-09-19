@@ -88,3 +88,66 @@ def fit_spline_and_derivatives_one_batch(
         df_first_derivative[f"{col}"] = s_first_derivative
 
     return df_fitted, df_first_derivative
+
+
+def fit_splines_to_segments(
+    s: pd.Series, peaks: pd.Series, smoothing_factor: float = 100.0
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Fit splines to segments of the time series data between detected peaks.
+
+    Parameters
+    ----------
+    s : pd.Series
+        _description_
+    peaks : pd.Series
+        _description_
+    smoothing_factor : float, optional
+        _description_, by default 100.0
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame]
+        _description_
+    """
+    peak_timepoints = [s.index.min(), *peaks.dropna().index, s.index.max()]
+    res_fitted, res_derivative, res_max, res_idx_max = [], [], [], []
+    for start, end in zip(peak_timepoints, peak_timepoints[1:]):
+        s_segment = s[start:end]
+        s_segment_fitted, s_segment_derivative = fit_spline_and_derivatives(
+            s_segment, smoothing_factor=smoothing_factor
+        )
+        res_fitted.append(s_segment_fitted)
+        res_derivative.append(s_segment_derivative)
+        idx_max = s_segment_derivative.idxmax()
+        res_max.append(s_segment.loc[idx_max])
+        res_idx_max.append(idx_max)
+
+    res_fitted = pd.concat(res_fitted).sort_index()
+    res_fitted = res_fitted.loc[~res_fitted.index.duplicated(keep="first")]
+    res_derivative = pd.concat(res_derivative).sort_index()
+    res_derivative = res_derivative.loc[~res_derivative.index.duplicated(keep="first")]
+    res_max = pd.Series(res_max, index=res_idx_max).sort_index()
+    return res_fitted, res_derivative, res_max
+
+
+def fit_growth_data_w_peaks(
+    df_wide: pd.DataFrame,
+    peaks: pd.DataFrame,
+    smoothing_factor: float = 100.0,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Fit growth data with splines between detected peaks."""
+    df_fitted = pd.DataFrame(index=df_wide.index)
+    df_first_derivative = pd.DataFrame(index=df_wide.index)
+    df_max = {}
+
+    for col in df_wide.columns:
+        s = df_wide[col].dropna()
+        s_peaks = peaks[col].dropna()
+        s_fitted, s_derivative, s_max = fit_splines_to_segments(
+            s, s_peaks, smoothing_factor=smoothing_factor
+        )
+        df_fitted[col] = s_fitted
+        df_first_derivative[col] = s_derivative
+        df_max[col] = s_max
+
+    return df_fitted, df_first_derivative, df_max

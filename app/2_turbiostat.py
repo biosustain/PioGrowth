@@ -2,9 +2,11 @@ import functools
 
 import pandas as pd
 import streamlit as st
-from plots import plot_growth_data_w_peaks
+from plots import plot_derivatives, plot_fitted_data, plot_growth_data_w_peaks
 from ui_components import show_warning_to_upload_data
 
+from piogrowth.durations import find_max_range
+from piogrowth.fit import fit_growth_data_w_peaks
 from piogrowth.turbistat import detect_peaks
 
 ## Logic and PLOTTING
@@ -41,6 +43,16 @@ with st.form(key="turbidostat_form"):
         step=1,
         key="turbiostat_distance",
     )
+    smoothing_factor = st.slider(
+        label="Smoothing factor for spline fitting",
+        min_value=1.0,
+        value=1000.0,
+        step=1.0,
+        key="smoothing_factor",
+    )
+    high_percentage_treshold = st.slider(
+        "Define percentage of µmax considered as high", 0, 100, 90, step=1
+    )
     submitted = st.form_submit_button("Analyse")
 
 if submitted:
@@ -57,4 +69,33 @@ if submitted:
     st.write(peaks)
 
     fig, axes = plot_growth_data_w_peaks(df_rolling, peaks)
+    st.pyplot(fig)
+
+    splines, df_first_derivative, d_maxima = fit_growth_data_w_peaks(
+        df_rolling, peaks, smoothing_factor=smoothing_factor
+    )
+
+    prop_high = high_percentage_treshold / 100
+    cutoffs = df_first_derivative.max() * prop_high
+    in_high_growth = df_first_derivative.ge(cutoffs, axis=1)
+    max_time_range = in_high_growth.apply(find_max_range, axis=0).T.convert_dtypes()
+
+    fig, axes = plot_fitted_data(
+        splines,
+    )
+    axes = axes.flatten()
+    for ax, s_maxima in zip(axes, d_maxima.values()):
+        for x in s_maxima.index:
+            ax.axvline(x=x, color="red", linestyle="--")
+    for ax, col in zip(axes, df_first_derivative.columns):
+        row = max_time_range.loc[col]
+        if row.is_continues:
+            # only plot span if the time range is continous (no jumps)
+            ax.axvspan(row.start, row.end, color="gray", alpha=0.2)
+    st.subheader("Fitted splines per segment")
+    st.pyplot(fig)
+
+    st.subheader("First Derivative of fitted splines per segment")
+
+    fig, axes = plot_derivatives(df_first_derivative)
     st.pyplot(fig)

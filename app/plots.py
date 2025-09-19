@@ -132,7 +132,7 @@ def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
         subplots=True,
         layout=(-1, 2),
         sharex=True,
-        sharey=True,
+        sharey=False,
         title=titles,
         ylabel=ylabel,
         xlabel="timepoints (rounded)",
@@ -168,6 +168,7 @@ def plot_derivatives(derivatives: pd.DataFrame, titles=None) -> plt.Figure:
         decimal_place = "%.1f"
     for ax in _axes:
         _ = ax.yaxis.set_major_formatter(FormatStrFormatter(decimal_place))
+    ax = _axes[-1]
     fig = ax.get_figure()
     fig.tight_layout()
     return fig, axes

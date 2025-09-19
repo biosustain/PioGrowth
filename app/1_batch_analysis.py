@@ -76,7 +76,7 @@ if form_submit and not no_data_uploaded:
         df_rolling,
         smoothing_factor=spline_smoothing_value,
     )
-    prop_high = high_percentage_treshold = high_percentage_treshold / 100
+    prop_high = high_percentage_treshold / 100
     cutoffs = derivatives.max() * prop_high
     in_high_growth = derivatives.ge(cutoffs, axis=1)
     max_time_range = in_high_growth.apply(find_max_range, axis=0).T.convert_dtypes()
