@@ -121,7 +121,7 @@ def plot_growth_data_w_peaks(
     fig = ax.get_figure()
     fig.tight_layout()
 
-    return fig
+    return fig, axes
 
 
 def plot_fitted_data(splines, titles=None, ylabel="OD readings"):

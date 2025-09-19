@@ -56,5 +56,5 @@ if submitted:
     st.write("## Detected Peaks")
     st.write(peaks)
 
-    fig = plot_growth_data_w_peaks(df_rolling, peaks)
+    fig, axes = plot_growth_data_w_peaks(df_rolling, peaks)
     st.pyplot(fig)
