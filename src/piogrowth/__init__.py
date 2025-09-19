@@ -8,4 +8,4 @@ __version__ = metadata.version("piogrowth")
 
 # The __all__ variable is a list of variables which are imported
 # when a user does "from example import *"
-__all__ = ['load', 'filter']
+__all__ = ["load", "filter"]
