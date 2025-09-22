@@ -301,9 +301,9 @@ if df_rolling is not None:
         file_name="rolling_median_on_filtered_wide_data_with_rounded_timestamps.csv",
     )
 
-st.markdown("### Store in QuervE format")
-convert = st.button("Store in QuervE format", key="store_in_querve")
+st.markdown("### Store in QurvE format")
+convert = st.button("Store in QurvE format", key="store_in_QurvE")
 
 if convert:
-    st.warning("fct to convert to QuervE not implemented.")
+    st.warning("fct to convert to QurvE not implemented.")
     # store in state
