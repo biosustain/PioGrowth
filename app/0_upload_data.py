@@ -123,7 +123,7 @@ if file is not None:
     df_raw_od_data.insert(
         0,
         "timestamp_rounded",
-        df_raw_od_data["timestamp"].dt.round(
+        df_raw_od_data["timestamp_localtime"].dt.round(
             f"{round_time}s",
         ),
     )
