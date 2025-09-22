@@ -127,6 +127,7 @@ if file is not None:
             f"{round_time}s",
         ),
     )
+    st.session_state["round_time"] = round_time
     rerun = st.session_state.get("df_raw_od_data") is None
     st.session_state["df_raw_od_data"] = df_raw_od_data
     # re-run now with data set

@@ -30,8 +30,8 @@ st.markdown(
 with st.form(key="turbidostat_form"):
     turbiostat_meta = st.file_uploader(
         (
-            "Upload metadata of dilution events."
-            "Optional and only used for verification of peaks detected at the moment."
+            "Upload metadata of dilution events. Optional, but recommended. "
+            "If provided the peaks will be assigned based on the dilution events."
         ),
         type=["csv"],
     )
@@ -56,17 +56,45 @@ with st.form(key="turbidostat_form"):
     submitted = st.form_submit_button("Analyse")
 
 if submitted:
-    if turbiostat_meta is not None:
-        df_meta = pd.read_csv(turbiostat_meta)
-        st.write(df_meta)
-
+    round_time = st.session_state.get("round_time", 60)
     df_rolling = st.session_state.get("df_rolling")
 
-    _detect_peaks = functools.partial(detect_peaks, distance=minimum_distance)
-    peaks = df_rolling.apply(_detect_peaks)
+    df_meta = None
+    if turbiostat_meta is not None:
+        st.subheader("Uploaded metadata of dilution events (optional)")
+        df_meta = pd.read_csv(
+            turbiostat_meta, parse_dates=["timestamp_localtime"]
+        ).convert_dtypes()
+        df_meta.insert(
+            0,
+            "timestamp_rounded",
+            df_meta["timestamp_localtime"].dt.round(
+                f"{round_time}s",
+            ),
+        )
+        # ! check that format is as expected
+        st.write(df_meta)
 
-    st.write("## Detected Peaks")
-    st.write(peaks)
+    # Peak detection: Based on metadata or using scipy.signal.find_peaks
+    if df_meta is not None:
+        st.subheader("Reading peaks from provided metadata")
+        st.write("Data is rounded to match OD data timepoints.")
+        peaks = df_meta.pivot(
+            index="timestamp_localtime",
+            columns="pioreactor_unit",
+            values="message",
+        )
+        st.dataframe(peaks, use_container_width=True)
+    else:
+        st.subheader("Detected peaks")
+        st.write(
+            "Note: Peaks are detected using "
+            "[`scipy.signal.find_peaks`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html)"
+        )
+
+        _detect_peaks = functools.partial(detect_peaks, distance=minimum_distance)
+        peaks = df_rolling.apply(_detect_peaks)
+        st.dataframe(peaks)
 
     fig, axes = plot_growth_data_w_peaks(df_rolling, peaks)
     st.pyplot(fig)
