@@ -19,6 +19,9 @@ no_data_uploaded = st.session_state.get("df_rolling") is None
 
 if no_data_uploaded:
     show_warning_to_upload_data()
+    st.stop()
+
+df_meta = st.session_state.get("df_meta")
 
 st.markdown(
     "Analyse pioreactor OD600 measurements when running in turbidostat mode. "
@@ -35,7 +38,53 @@ with st.form(key="turbidostat_form"):
         ),
         type=["csv"],
     )
-
+    # ! pick out names of columns in form
+    meta_data_options = st.columns(3)
+    if df_meta is None:
+        col_timestamp = meta_data_options[0].selectbox(
+            "Select timestamp column",
+            options=["timestamp", "timestamp_localtime"],
+            index=1,
+            key="turbiostat_timestamp_col",
+        )
+        col_reactors = meta_data_options[1].text_input(
+            "Select column with reactor information",
+            value="reactor",
+            key="turbistat_reactor_col",
+        )
+        col_message = meta_data_options[2].text_input(
+            "Select column with event description",
+            value="message",
+            key="turbidostat_message_col",
+        )
+    else:
+        col_timestamp = meta_data_options[0].selectbox(
+            "Select timestamp column",
+            options=df_meta.columns.tolist(),
+            index=(
+                df_meta.columns.get_loc(st.session_state.turbidostat_message_col)
+                if st.session_state.get("turbidostat_timestamp_col") in df_meta.columns
+                else 0
+            ),
+        )
+        col_reactors = meta_data_options[1].selectbox(
+            "Select column with reactor information",
+            options=df_meta.columns.tolist(),
+            index=(
+                df_meta.columns.get_loc(st.session_state.turbidostat_reactor_col)
+                if st.session_state.get("turbidostat_reactor_col") in df_meta.columns
+                else 0
+            ),
+        )
+        col_message = meta_data_options[2].selectbox(
+            "Select column with event description",
+            options=df_meta.columns.tolist(),
+            index=(
+                df_meta.columns.get_loc(st.session_state.turbidostat_message_col)
+                if st.session_state.get("turbidostat_message_col") in df_meta.columns
+                else 0
+            ),
+        )
     minimum_distance = st.number_input(
         label="Minimum distance between peaks (in number of samples)",
         min_value=3,
@@ -50,16 +99,33 @@ with st.form(key="turbidostat_form"):
         step=1.0,
         key="smoothing_factor",
     )
-    high_percentage_treshold = st.slider(
-        "Define percentage of µmax considered as high", 0, 100, 90, step=1
+    high_percentage_threshold = st.slider(
+        "Define percentage of µmax considered as high",
+        min_value=0,
+        max_value=100,
+        value=90,
+        step=1,
+        key="high_percentage_threshold",
     )
     submitted = st.form_submit_button("Analyse")
 
+if st.session_state.get("show_error"):
+    st.error(
+        f"Could not find column in metadata. Please check the column names."
+        " The selection was adjusted to the available columns."
+    )
 if submitted:
+    st.session_state["show_error"] = False
+
+    if turbiostat_meta is None and df_meta is not None:
+        st.warning(
+            "Using previously uploaded metadata of dilution events."
+            " Reset app to use automatic peak picking."
+        )
+
     round_time = st.session_state.get("round_time", 60)
     df_rolling = st.session_state.get("df_rolling")
 
-    df_meta = None
     if turbiostat_meta is not None:
         st.subheader("Uploaded metadata of dilution events (optional)")
         df_meta = pd.read_csv(
@@ -72,6 +138,7 @@ if submitted:
                 f"{round_time}s",
             ),
         )
+        st.session_state["df_meta"] = df_meta
         # ! check that format is as expected
         st.write(df_meta)
 
@@ -79,11 +146,17 @@ if submitted:
     if df_meta is not None:
         st.subheader("Reading peaks from provided metadata")
         st.write("Data is rounded to match OD data timepoints.")
-        peaks = df_meta.pivot(
-            index="timestamp_localtime",
-            columns="pioreactor_unit",
-            values="message",
-        )
+        # if this fails user needs to pick out names of columns in form
+        try:
+            peaks = df_meta.pivot(
+                index=col_timestamp,
+                columns=col_reactors,
+                values=col_message,
+            )
+        except KeyError as e:
+            st.session_state["show_error"] = True
+            st.rerun()
+
         st.dataframe(peaks, use_container_width=True)
     else:
         st.subheader("Detected peaks")
