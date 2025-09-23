@@ -176,7 +176,7 @@ if submitted:
         df_rolling, peaks, smoothing_factor=smoothing_factor
     )
 
-    prop_high = high_percentage_treshold / 100
+    prop_high = high_percentage_threshold / 100
     cutoffs = df_first_derivative.max() * prop_high
     in_high_growth = df_first_derivative.ge(cutoffs, axis=1)
     max_time_range = in_high_growth.apply(find_max_range, axis=0).T.convert_dtypes()
