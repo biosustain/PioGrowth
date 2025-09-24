@@ -2,7 +2,13 @@ import functools
 
 import pandas as pd
 import streamlit as st
-from plots import plot_derivatives, plot_fitted_data, plot_growth_data_w_peaks
+from buttons import create_download_button, download_data_button_in_sidebar
+from plots import (
+    create_figure_bytes_to_download,
+    plot_derivatives,
+    plot_fitted_data,
+    plot_growth_data_w_peaks,
+)
 from ui_components import show_warning_to_upload_data
 
 from piogrowth.durations import find_max_range
@@ -189,8 +195,36 @@ if submitted:
     fig, axes = plot_growth_data_w_peaks(df_rolling, peaks)
     st.pyplot(fig)
 
+    with st.sidebar:
+        create_download_button(
+            label="Download figure for growth data with peaks as PDF",
+            data=create_figure_bytes_to_download(fig, fmt="pdf"),
+            file_name="growth_data_with_peaks.pdf",
+            disabled=False,
+            mime="application/pdf",
+        )
+
+    # ? should the one with negative values removed stored globally?
+    st.session_state["df_rolling_turbidostat"] = df_rolling
+    download_data_button_in_sidebar(
+        "df_rolling_turbidostat",
+        label="Download data used for growth analysis",
+        file_name="df_rolling_turbidostat.csv",
+    )
     splines, df_first_derivative, d_maxima = fit_growth_data_w_peaks(
         df_rolling, peaks, smoothing_factor=smoothing_factor
+    )
+    st.session_state["df_splines_turbidostat"] = splines
+    st.session_state["df_derivatives_turbidostat"] = df_first_derivative
+    download_data_button_in_sidebar(
+        "df_splines_turbidostat",
+        label="Download data of fitted splines",
+        file_name="df_splines_turbidostat.csv",
+    )
+    download_data_button_in_sidebar(
+        "df_derivatives_turbidostat",
+        label="Download data of derivatives",
+        file_name="df_derivatives_turbidostat.csv",
     )
 
     prop_high = high_percentage_threshold / 100
@@ -213,7 +247,25 @@ if submitted:
     st.subheader("Fitted splines per segment")
     st.pyplot(fig)
 
+    with st.sidebar:
+        create_download_button(
+            label="Download figure for fitted splines as PDF",
+            data=create_figure_bytes_to_download(fig, fmt="pdf"),
+            file_name="fitted_splines.pdf",
+            disabled=False,
+            mime="application/pdf",
+        )
+
     st.subheader("First Derivative of fitted splines per segment")
 
     fig, axes = plot_derivatives(df_first_derivative)
     st.pyplot(fig)
+
+    with st.sidebar:
+        create_download_button(
+            label="Download figure for fitted derivatives as PDF",
+            data=create_figure_bytes_to_download(fig, fmt="pdf"),
+            file_name="fitted_derivatives.pdf",
+            disabled=False,
+            mime="application/pdf",
+        )

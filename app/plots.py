@@ -1,3 +1,5 @@
+import io
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -6,6 +8,12 @@ from matplotlib.dates import DateFormatter
 from matplotlib.ticker import FormatStrFormatter
 
 st.cache_data()
+
+
+def create_figure_bytes_to_download(fig: plt.Figure, fmt: str = "pdf") -> io.BytesIO:
+    buf = io.BytesIO()
+    fig.savefig(buf, format=fmt)
+    return buf
 
 
 def plot_growth_data(df_long: pd.DataFrame):

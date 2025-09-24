@@ -6,12 +6,14 @@ def convert_data(df):
 
 
 @st.fragment
-def create_download_button(label: str, data: str, file_name: str, disabled: bool):
+def create_download_button(
+    label: str, data: str, file_name: str, disabled: bool, mime: str
+):
     st.download_button(
         label=label,
         data=data,
         file_name=file_name,
-        mime="text/csv",
+        mime=mime,
         disabled=disabled,
     )
 
@@ -39,4 +41,5 @@ def download_data_button_in_sidebar(
             data=data,
             file_name=file_name,
             disabled=disabled,
+            mime="text/csv",
         )
