@@ -176,6 +176,10 @@ if submitted:
                 f"{round_time}s",
             ),
         )
+        mask_dilution_events = df_meta["event_name"] == "DilutionEvent"
+        if not mask_dilution_events.all():
+            st.info('Showing only rows with "DilutionEvent" in column "event_name".')
+            df_meta = df_meta.loc[mask_dilution_events]
         st.session_state["df_meta"] = df_meta
         # ! check that format is as expected
         with container_metadata:
