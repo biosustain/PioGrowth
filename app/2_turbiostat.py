@@ -92,6 +92,11 @@ with st.form(key="turbidostat_form"):
         step=1,
         key="turbiostat_distance",
     )
+    remove_downward_trending = st.checkbox(
+        label="Remove downward trending data points (negative OD changes) globally",
+        value=True,
+        key="remove_downward_trending",
+    )
     smoothing_factor = st.slider(
         label="Smoothing factor for spline fitting",
         min_value=1.0,
@@ -172,6 +177,12 @@ if submitted:
         peaks = df_rolling.apply(_detect_peaks)
         st.dataframe(peaks)
 
+    if remove_downward_trending:
+        # Remove downward trending data globally on averaged data
+        df_rolling = df_rolling.mask(df_rolling.diff().le(0))
+        st.info(
+            "Downward trending data points (negative OD changes) were removed globally."
+        )
     fig, axes = plot_growth_data_w_peaks(df_rolling, peaks)
     st.pyplot(fig)
 
