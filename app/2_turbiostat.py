@@ -15,7 +15,21 @@ from piogrowth.durations import find_max_range
 from piogrowth.fit import fit_growth_data_w_peaks
 from piogrowth.turbistat import detect_peaks
 
+
 ## Logic and PLOTTING
+def create_summary(maxima: dict[str, pd.Series]) -> pd.DataFrame:
+    """Create a summary DataFrame from the maxima dictionary."""
+    df_summary = pd.DataFrame(maxima).stack()
+    df_summary.index.names = ["timestamp", "pioreactor_unit"]
+    df_summary.name = "max_derivative_value"
+    df_summary = df_summary.to_frame()
+    # df_summary = df_summary.reset_index()
+    return df_summary
+
+
+def get_values_from_df(df_wide: pd.DataFrame, indices: pd.MultiIndex) -> pd.DataFrame:
+    """Get values from the wide DataFrame based on the index of the summary DataFrame."""
+    return df_wide.loc[indices.get_level_values("timestamp")].stack().loc[indices]
 
 
 ## UI
@@ -269,3 +283,23 @@ if submitted:
             disabled=False,
             mime="application/pdf",
         )
+
+    # Summary table
+    st.subheader("Summary of high growth periods")
+
+    # Sidebar Download buttons
+    df_summary = create_summary(d_maxima)
+    df_summary["OD_median"] = get_values_from_df(df_rolling, df_summary.index)
+    df_summary["OD_spline"] = get_values_from_df(splines, df_summary.index)
+    df_summary["OD_derivative"] = get_values_from_df(
+        df_first_derivative, df_summary.index
+    )
+    df_summary = df_summary.swaplevel(0, 1).sort_index()
+    # ToDo: set pd format to display more minimal decimals
+    st.dataframe(df_summary)
+    st.session_state["df_summary"] = df_summary
+    download_data_button_in_sidebar(
+        "df_summary",
+        label="Download summary of high growth periods",
+        file_name="summary_turbidostat_periods.csv",
+    )
