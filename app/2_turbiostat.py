@@ -29,7 +29,7 @@ st.markdown(
     "of microorganisms in the reactors."
 )
 
-
+### Form
 with st.form(key="turbidostat_form"):
     turbiostat_meta = st.file_uploader(
         (
@@ -45,12 +45,12 @@ with st.form(key="turbidostat_form"):
             "Select timestamp column",
             options=["timestamp", "timestamp_localtime"],
             index=1,
-            key="turbiostat_timestamp_col",
+            key="turbidostat_timestamp_col",
         )
         col_reactors = meta_data_options[1].text_input(
             "Select column with reactor information",
             value="reactor",
-            key="turbistat_reactor_col",
+            key="turbidostat_reactor_col",
         )
         col_message = meta_data_options[2].text_input(
             "Select column with event description",
@@ -62,7 +62,7 @@ with st.form(key="turbidostat_form"):
             "Select timestamp column",
             options=df_meta.columns.tolist(),
             index=(
-                df_meta.columns.get_loc(st.session_state.turbidostat_message_col)
+                df_meta.columns.get_loc(st.session_state.turbidostat_timestamp_col)
                 if st.session_state.get("turbidostat_timestamp_col") in df_meta.columns
                 else 0
             ),
@@ -161,6 +161,9 @@ if submitted:
                 columns=col_reactors,
                 values=col_message,
             )
+            st.session_state["turbidostat_timestamp_col"] = col_timestamp
+            st.session_state["turbidostat_reactor_col"] = col_reactors
+            st.session_state["turbidostat_message_col"] = col_message
         except KeyError:
             st.session_state["show_error"] = True
             st.rerun()
