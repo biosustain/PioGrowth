@@ -141,6 +141,11 @@ if st.session_state.get("show_error"):
         " The selection was adjusted to the available columns."
     )
 
+container_metadata = st.empty()
+if df_meta is not None:
+    with container_metadata:
+        st.write(df_meta)
+
 ### On Submission of form parameters
 if submitted:
     st.session_state["show_error"] = False
@@ -168,13 +173,20 @@ if submitted:
         )
         st.session_state["df_meta"] = df_meta
         # ! check that format is as expected
-        st.write(df_meta)
+        with container_metadata:
+            st.write(df_meta)
 
     # Peak detection: Based on metadata or using scipy.signal.find_peaks
     if df_meta is not None:
         st.subheader("Reading peaks from provided metadata")
         st.write("Data is rounded to match OD data timepoints.")
         # if this fails user needs to pick out names of columns in form
+        if not (len(set((col_timestamp, col_reactors, col_message))) == 3):
+            st.error(
+                "Selected columns from uploaded dilution metadata cannot overlap."
+                " Use for each a unique column."
+            )
+            st.stop()
         try:
             peaks = df_meta.pivot(
                 index=col_timestamp,
