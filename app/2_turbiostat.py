@@ -32,7 +32,12 @@ def get_values_from_df(df_wide: pd.DataFrame, indices: pd.MultiIndex) -> pd.Data
     return df_wide.loc[indices.get_level_values("timestamp")].stack().loc[indices]
 
 
+def reset_metadata():
+    st.session_state["df_meta"] = None
+
+
 ## UI
+
 st.title("Growth Analysis of turbidostat mode")
 
 no_data_uploaded = st.session_state.get("df_rolling") is None
@@ -65,17 +70,14 @@ with st.form(key="turbidostat_form"):
             "Select timestamp column",
             options=["timestamp", "timestamp_localtime"],
             index=1,
-            key="turbidostat_timestamp_col",
         )
         col_reactors = meta_data_options[1].text_input(
             "Select column with reactor information",
-            value="reactor",
-            key="turbidostat_reactor_col",
+            value="pioreactor_unit",
         )
         col_message = meta_data_options[2].text_input(
             "Select column with event description",
             value="message",
-            key="turbidostat_message_col",
         )
     else:
         col_timestamp = meta_data_options[0].selectbox(
@@ -133,6 +135,9 @@ with st.form(key="turbidostat_form"):
         key="high_percentage_threshold",
     )
     submitted = st.form_submit_button("Analyse")
+
+with st.sidebar:
+    st.button("Reset uploaded metadata", on_click=reset_metadata)
 
 ### Error messages
 if st.session_state.get("show_error"):
