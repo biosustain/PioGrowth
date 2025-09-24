@@ -109,11 +109,14 @@ with st.form(key="turbidostat_form"):
     )
     submitted = st.form_submit_button("Analyse")
 
+### Error messages
 if st.session_state.get("show_error"):
     st.error(
-        f"Could not find column in metadata. Please check the column names."
+        "Could not find column in metadata. Please check the column names."
         " The selection was adjusted to the available columns."
     )
+
+### On Submission of form parameters
 if submitted:
     st.session_state["show_error"] = False
 
@@ -153,7 +156,7 @@ if submitted:
                 columns=col_reactors,
                 values=col_message,
             )
-        except KeyError as e:
+        except KeyError:
             st.session_state["show_error"] = True
             st.rerun()
 
