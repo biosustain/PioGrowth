@@ -36,6 +36,11 @@ def fit_spline_and_derivatives(
     # drop NaN values
     s = s.dropna()
 
+    if len(s) < 4:
+        raise ValueError(
+            "Not enough data points to fit a spline. Need at least 4 non-NaN values."
+        )
+
     x = (s.index - s.index[0]).total_seconds().to_numpy()
 
     bspl = make_splrep(
@@ -113,6 +118,8 @@ def fit_splines_to_segments(
     res_fitted, res_derivative, res_max, res_idx_max = [], [], [], []
     for start, end in zip(peak_timepoints, peak_timepoints[1:]):
         s_segment = s[start:end]
+        if len(s_segment) < 4:
+            continue
         s_segment_fitted, s_segment_derivative = fit_spline_and_derivatives(
             s_segment, smoothing_factor=smoothing_factor
         )
