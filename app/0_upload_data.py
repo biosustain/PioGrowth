@@ -5,8 +5,8 @@ from plots import plot_growth_data_w_mask
 
 import piogrowth
 
-custom_id = st.session_state["custom_id"]
-df_raw_od_data = st.session_state["df_raw_od_data"]
+custom_id = st.session_state.get("custom_id", "pioreactor_experiment")
+df_raw_od_data = st.session_state.get("df_raw_od_data")
 df_wide_raw_od_data = st.session_state.get("df_wide_raw_od_data")
 df_wide_raw_od_data_filtered = st.session_state.get("df_wide_raw_od_data_filtered")
 df_rolling = st.session_state.get("df_rolling")
@@ -291,7 +291,9 @@ if st.session_state.get("df_wide_raw_od_data_filtered") is not None:
 
 
 if df_rolling is not None:
-    st.header(f"Rolling median in window of {rolling_window}s using filtered OD data")
+    st.subheader(
+        f"Rolling median in window of {rolling_window}s using filtered OD data"
+    )
     st.write(df_rolling)
     ax = df_rolling.plot.line(style=".", ms=2)
     st.write(ax.get_figure())
