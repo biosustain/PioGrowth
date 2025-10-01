@@ -44,13 +44,14 @@ def plot_growth_data(df_long: pd.DataFrame):
 def plot_growth_data_w_mask(
     df_wide: pd.DataFrame,
     df_mask: pd.DataFrame,
+    sharey: bool = False,
 ) -> plt.Figure:
     """Plot optical density (OD) growth data."""
     # ?check that index is datetime and columns are numeric?
 
     units = df_wide.shape[1]
     fig, axes = plt.subplots(
-        units, 1, figsize=(10, 2 * units), sharey=True, sharex=True, squeeze=False
+        units, 1, figsize=(10, 2 * units), sharey=sharey, sharex=True, squeeze=False
     )
     axes = axes.flatten()
     df_columns = df_wide.columns

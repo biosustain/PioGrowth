@@ -138,7 +138,15 @@ with st.form("Upload_data_form", clear_on_submit=False):
                         df_wide_raw_od_data[reactor].dropna().index.max(),
                     ),
                 )
-        st.divider()
+    st.divider()
+    st.write("Plotting options:")
+    use_same_yaxis_scale = st.checkbox(
+        "Use same y-axis for all reactors?",
+        value=False,
+        key="yaxis_scale",
+        help="Select plotting behaviour.",
+    )
+    st.divider()
     button_pressed = st.form_submit_button(
         "Apply options to uploaded data", type="primary"
     )
@@ -317,7 +325,11 @@ with container_raw_data:
 
 if df_wide_raw_od_data is not None and masked is not None:
     # Download options
-    fig = plot_growth_data_w_mask(df_wide_raw_od_data, masked)
+    if not use_same_yaxis_scale:
+        st.warning("Using different y-axis scale for each reactor.")
+    fig = plot_growth_data_w_mask(
+        df_wide_raw_od_data, masked, sharey=use_same_yaxis_scale
+    )
     with container_figures:
         st.write(fig)
 
