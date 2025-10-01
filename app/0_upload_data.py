@@ -104,21 +104,45 @@ with st.form("Upload_data_form", clear_on_submit=False):
         31,
         step=2,
     )
-
+    st.divider()
+    st.write(
+        "Select time window for data to be processed. Dates are inferred from "
+        "uploaded data. This won't be plotted in red as filtered data, but just "
+        "cap the datapoints for reactors outside of the selected time window."
+        "The overall time window bounds the selected time windows for the individual "
+        "reactors."
+    )
     min_date, max_date = None, None
     if df_raw_od_data is not None:
         min_date, max_date = st.select_slider(
-            "Select time window (inferred). This won't be plotted as filtered data.",
+            "Select overall time window (inferred).",
             options=df_raw_od_data["timestamp_rounded"],
             value=(
                 df_raw_od_data["timestamp_rounded"].min(),
                 df_raw_od_data["timestamp_rounded"].max(),
             ),
         )
-    if file is None:
-        button_pressed = st.form_submit_button("Process file", type="primary")
-    else:
-        button_pressed = st.form_submit_button("Re-process file", type="primary")
+    st.divider()
+    if df_wide_raw_od_data is not None:
+        with st.expander("Select time window per reactor"):
+            st.info("Note: Minimum and maximum for slider are reactor specific!")
+            # per reactor, get min and max timestamps
+            time_ranges = dict()
+            for reactor in df_wide_raw_od_data.columns:
+                time_ranges[reactor] = st.select_slider(
+                    f"Select time window (inferred) for {reactor}."
+                    " Bounded by overall time window.",
+                    options=df_wide_raw_od_data[reactor].dropna().index,
+                    value=(
+                        df_wide_raw_od_data[reactor].dropna().index.min(),
+                        df_wide_raw_od_data[reactor].dropna().index.max(),
+                    ),
+                )
+        st.divider()
+    button_pressed = st.form_submit_button(
+        "Apply options to uploaded data", type="primary"
+    )
+
 ########################################################################################
 # Raw data and plots
 
@@ -198,6 +222,16 @@ if button_pressed:
     if min_date:
         df_wide_raw_od_data = df_wide_raw_od_data.loc[min_date:max_date]
         st.info(f"Time range: {min_date} to {max_date}")
+
+    for reactor, time_range in time_ranges.items():
+        if reactor not in df_wide_raw_od_data.columns:
+            continue
+        _min_date, _max_date = time_range
+        _min_date = max(_min_date, min_date)
+        _max_date = min(_max_date, max_date)
+        df_wide_raw_od_data[reactor] = df_wide_raw_od_data.loc[
+            _min_date:_max_date, reactor
+        ]
 
     # initalize masked here
     masked = pd.DataFrame(
