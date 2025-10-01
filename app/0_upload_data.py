@@ -18,14 +18,33 @@ container_download_example = st.empty()
 
 ########################################################################################
 # Upload Form
+file = st.file_uploader(
+    "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
+    type=["csv", "txt"],
+    # needs callback to clear session state
+)
+if file is None:
+    if df_raw_od_data is not None:
+        st.info("Some data was uploaded before. Processing will apply to that data.")
+    else:
+        with container_download_example:
+            col0, col1 = st.columns(2)
+            # populate columns (could be outside of with statement)
+            col0.warning("no data uploaded.")
+            # clicking triggers a re-run, but that is fast if no data was previously uploaded
+            col1.download_button(
+                label="Download example  pioreactor experiment in csv format.",
+                data=pd.read_csv("data/example_batch_data_od_readings.csv").to_csv(
+                    index=False
+                ),
+                file_name="example_batch_data_od_readings.csv",
+                key="download_example_csv",
+                mime="text/csv",
+            )
+        st.info("Upload a comma-separated (csv) file to get started.")
 
 with st.form("Upload_data_form", clear_on_submit=False):
 
-    file = st.file_uploader(
-        "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
-        type=["csv"],
-        # needs callback to clear session state
-    )
     custom_id = st.text_input(
         "Enter custom ID for data",
         max_chars=30,
@@ -112,7 +131,13 @@ container_figures = st.empty()
 if custom_id:
     st.session_state["custom_id"] = custom_id
 
+if button_pressed and file is None and df_raw_od_data is None:
+    extra_warn.warning("No data uploaded.")
+    st.stop()
 
+msg = ""
+
+# this runs wheather the button is pressed or not, but only if a file is uploaded?
 if file is not None:
     df_raw_od_data = piogrowth.load.read_csv(file)
     msg = (
@@ -131,9 +156,6 @@ if file is not None:
     rerun = st.session_state.get("df_raw_od_data") is None
     st.session_state["df_raw_od_data"] = df_raw_od_data
     # re-run now with data set
-    if rerun:
-        # ? replace with callback function that creates the input form?
-        st.rerun()
 
     # Filter reactors (all measurements from selected reactors)
     if reactors_selected:
@@ -164,7 +186,13 @@ if file is not None:
             f" please decrease below: {round_time} seconds."
         )
         st.stop()
+    st.session_state["df_wide_raw_od_data"] = df_wide_raw_od_data
+    if rerun:
+        # ? replace with callback function that creates the input form?
+        st.rerun()
 
+
+if button_pressed:
     # skip first or last measurements based on user input (after first loading the data)
     # ! won't be plotted as filtered data
     if min_date:
@@ -239,7 +267,7 @@ if file is not None:
     # masked.to_csv(fpath)
     # df_wide_raw_od_data.to_csv(Path(f"playground/data/{custom_id}_raw_wide_data.csv"))
     st.session_state["df_wide_raw_od_data_filtered"] = df_wide_raw_od_data_filtered
-    st.session_state["df_wide_raw_od_data"] = df_wide_raw_od_data
+
     st.session_state["masked"] = masked
 
     df_rolling = df_wide_raw_od_data_filtered.rolling(
@@ -249,23 +277,6 @@ if file is not None:
     ).median()
     st.session_state["df_rolling"] = df_rolling
 
-else:
-    if button_pressed:
-        extra_warn.warning("No data uploaded.")
-    with container_download_example:
-        col0, col1 = st.columns(2)
-        # populate columns (could be outside of with statement)
-        col0.warning("no data uploaded.")
-        # clicking triggers a re-run, but that is fast if no data was previously uploaded
-        col1.download_button(
-            label="Download example  pioreactor experiment in csv format.",
-            data=pd.read_csv("data/example_batch_data_od_readings.csv").to_csv(
-                index=False
-            ),
-            file_name="example_batch_data_od_readings.csv",
-            key="download_example_csv",
-            mime="text/csv",
-        )
 
 with container_raw_data:
     st.dataframe(df_raw_od_data, use_container_width=True)
@@ -302,8 +313,9 @@ if df_rolling is not None:
     )
 
 st.markdown("### Store in QurvE format")
-convert = st.button("Store in QurvE format", key="store_in_QurvE")
+st.info("This feature is not yet implemented.")
+# convert = st.button("Store in QurvE format", key="store_in_QurvE")
 
-if convert:
-    st.warning("fct to convert to QurvE not implemented.")
-    # store in state
+# if convert:
+#     st.warning("fct to convert to QurvE not implemented.")
+# store in state
