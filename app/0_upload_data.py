@@ -17,7 +17,7 @@ st.title("Upload Data")
 container_download_example = st.empty()
 
 ########################################################################################
-# Upload Form
+# Upload File section
 file = st.file_uploader(
     "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
     type=["csv", "txt"],
@@ -43,6 +43,8 @@ if file is None:
             )
         st.info("Upload a comma-separated (csv) file to get started.")
 
+########################################################################################
+# Filtering Form
 with st.form("Upload_data_form", clear_on_submit=False):
 
     custom_id = st.text_input(
@@ -189,19 +191,6 @@ if file is not None:
     st.session_state["df_raw_od_data"] = df_raw_od_data
     # re-run now with data set
 
-    # Filter reactors (all measurements from selected reactors)
-    if reactors_selected:
-        st.write(f"Filtering reactors: {reactors_selected}")
-        if isinstance(reactors_selected, str):
-            # make it a list
-            reactors_selected = reactors_selected.split(",")
-            st.write(f"Filtering reactors: {reactors_selected}")
-        mask = df_raw_od_data["pioreactor_unit"].isin(reactors_selected)
-        if filter_option == "Remove":
-            df_raw_od_data = df_raw_od_data.loc[~mask]
-        else:
-            df_raw_od_data = df_raw_od_data.loc[mask]
-
     msg += f"- Wide OD data with rounded timestamps to {round_time} seconds.\n"
     # wide data of raw data
     # - can be used in plot for visualization,
@@ -225,6 +214,18 @@ if file is not None:
 
 
 if button_pressed:
+    # Filter reactors (all measurements from selected reactors)
+    if reactors_selected:
+        st.write(f"Filtering reactors: {reactors_selected}")
+        if isinstance(reactors_selected, str):
+            # make it a list
+            reactors_selected = reactors_selected.split(",")
+            st.write(f"Filtering reactors: {reactors_selected}")
+        mask = df_raw_od_data["pioreactor_unit"].isin(reactors_selected)
+        if filter_option == "Remove":
+            df_raw_od_data = df_raw_od_data.loc[~mask]
+        else:
+            df_raw_od_data = df_raw_od_data.loc[mask]
     # skip first or last measurements based on user input (after first loading the data)
     # ! won't be plotted in red as filtered data, but just not appear in the plots
     # ! applied to wide raw data
@@ -310,7 +311,6 @@ if button_pressed:
     # masked.to_csv(fpath)
     # df_wide_raw_od_data.to_csv(Path(f"playground/data/{custom_id}_raw_wide_data.csv"))
     st.session_state["df_wide_raw_od_data_filtered"] = df_wide_raw_od_data_filtered
-
     st.session_state["masked"] = masked
 
     df_rolling = df_wide_raw_od_data_filtered.rolling(
