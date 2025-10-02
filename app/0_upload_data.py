@@ -226,7 +226,8 @@ if file is not None:
 
 if button_pressed:
     # skip first or last measurements based on user input (after first loading the data)
-    # ! won't be plotted as filtered data
+    # ! won't be plotted in red as filtered data, but just not appear in the plots
+    # ! applied to wide raw data
     if min_date:
         df_wide_raw_od_data = df_wide_raw_od_data.loc[min_date:max_date]
         st.info(f"Time range: {min_date} to {max_date}")
