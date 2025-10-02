@@ -23,7 +23,6 @@ def create_summary(maxima: dict[str, pd.Series]) -> pd.DataFrame:
     df_summary.index.names = ["timestamp", "pioreactor_unit"]
     df_summary.name = "max_derivative_value"
     df_summary = df_summary.to_frame()
-    # df_summary = df_summary.reset_index()
     return df_summary
 
 
@@ -107,13 +106,29 @@ with st.form(key="turbidostat_form"):
                 else 0
             ),
         )
-    minimum_distance = st.number_input(
-        label="Minimum distance between peaks (in number of samples)",
-        min_value=3,
-        value=300,
-        step=1,
-        key="turbiostat_distance",
-    )
+    st.divider()
+    with st.expander(
+        "Peak detection settings if no dilution event data is available"
+        " (or should not be used)",
+        expanded=False,
+    ):
+        minimum_peak_height = st.number_input(
+            label=(
+                "Minimum peak height (in OD units) - used only if no metadata provided. "
+                "No values uses adaptive thresholding based on the maximum of a OD curve."
+                "The default is one-fifth of the maximum OD value in a time series."
+            ),
+            min_value=0.0,
+            value=None,
+        )
+        minimum_distance = st.number_input(
+            label="Minimum distance between peaks (in number of samples)",
+            min_value=3,
+            value=300,
+            step=1,
+            key="turbiostat_distance",
+        )
+    st.divider()
     remove_downward_trending = st.checkbox(
         label="Remove downward trending data points (negative OD changes) globally",
         value=True,
@@ -216,8 +231,12 @@ if submitted:
             "Note: Peaks are detected using "
             "[`scipy.signal.find_peaks`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html)"
         )
-
-        _detect_peaks = functools.partial(detect_peaks, distance=minimum_distance)
+        st.write(f"Minimum distance between peaks: {minimum_peak_height} samples")
+        _detect_peaks = functools.partial(
+            detect_peaks,
+            distance=minimum_distance,
+            prominence=minimum_peak_height,
+        )
         peaks = df_rolling.apply(_detect_peaks)
         st.dataframe(peaks)
 
@@ -310,13 +329,16 @@ if submitted:
 
     # Sidebar Download buttons
     df_summary = create_summary(d_maxima)
-    df_summary["OD_median"] = get_values_from_df(df_rolling, df_summary.index)
-    df_summary["OD_spline"] = get_values_from_df(splines, df_summary.index)
-    df_summary["OD_derivative"] = get_values_from_df(
-        df_first_derivative, df_summary.index
-    )
+    # ! to fix for automatic peak picking
+    try:
+        df_summary["OD_median"] = get_values_from_df(df_rolling, df_summary.index)
+        df_summary["OD_spline"] = get_values_from_df(splines, df_summary.index)
+        df_summary["OD_derivative"] = get_values_from_df(
+            df_first_derivative, df_summary.index
+        )
+    except ValueError as e:
+        st.error(f"Error occurred while creating summary - ValueError: {e}")
     df_summary = df_summary.swaplevel(0, 1).sort_index()
-    # ToDo: set pd format to display more minimal decimals
     st.dataframe(df_summary)
     st.session_state["df_summary"] = df_summary
     download_data_button_in_sidebar(
