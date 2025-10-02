@@ -160,7 +160,6 @@ extra_warn = st.empty()
 
 st.header("Raw OD data")
 container_raw_data = st.empty()
-container_figures = st.empty()
 
 if custom_id:
     st.session_state["custom_id"] = custom_id
@@ -261,7 +260,6 @@ if button_pressed:
         df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_negative)
         masked = masked | mask_negative
 
-    st.title("Processing summary of OD readings")
     if remove_max:
         mask_extreme_values = (
             df_wide_raw_od_data_filtered
@@ -303,8 +301,6 @@ if button_pressed:
 
     masked = masked.convert_dtypes()
 
-    st.write(msg)
-
     # from pathlib import Path
     # fpath = Path(f"playground/data/{custom_id}_masked_values.csv")
     # fpath.parent.mkdir(exist_ok=True, parents=True)
@@ -331,8 +327,11 @@ if df_wide_raw_od_data is not None and masked is not None:
     fig = plot_growth_data_w_mask(
         df_wide_raw_od_data, masked, sharey=use_same_yaxis_scale
     )
-    with container_figures:
-        st.write(fig)
+    st.write(fig)
+
+if msg:
+    st.subheader("Processing summary of OD readings")
+    st.markdown(msg)
 
 if st.session_state.get("df_wide_raw_od_data") is not None:
     download_data_button_in_sidebar(
