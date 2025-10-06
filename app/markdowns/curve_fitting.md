@@ -1,9 +1,12 @@
 # Curve fitting methods
 
-## Querve approach
+## QurvE approach
 
-- based on approach in Querve paper, which based it on the approach layed out in
-  grofit R-package: https://www.jstatsoft.org/article/view/v033i07
+- based on approach in QurvE paper, which based it on the approach laid out in
+  grofit R-package. See their 
+  [README](https://github.com/NicWir/QurvE?tab=readme-ov-file#growth-profiling-methods)
+  and 
+  [Kahm et.al. 2014](https://www.jstatsoft.org/article/view/v033i07)
 - cubic smoothing spline from R was used:
   [docs](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/smooth.spline)
 

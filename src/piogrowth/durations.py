@@ -35,8 +35,8 @@ def find_max_range(s: pd.Series):
     Returns
     -------
     tuple
-        A tuple containing the start and end indices of the maximum range of consecutive True values.
-        If no True values are found, returns (pd.NaT, pd.NaT).
+        A tuple containing the start and end indices of the maximum range of consecutive
+        True values. If no True values are found, returns (pd.NaT, pd.NaT).
     """
     s_min = get_first_idxmax(s)
     s_max = get_last_true_index(s)

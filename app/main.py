@@ -28,8 +28,8 @@ turbistat_modus = st.Page(
 about_page = st.Page(render_about, title="About")
 
 # Sidebar
-st.sidebar.header("Info:")
-st.sidebar.button("Reset session", on_click=st.session_state.clear)
+st.sidebar.info("Info: To reset the app, reload the page.")
+# st.sidebar.button("Reset session", on_click=st.session_state.clear)
 st.sidebar.write(f"version: {piogrowth.__version__}")
 st.sidebar.write("Buttons activate if associated data is available:")
 # st.sidebar.write(st.session_state)

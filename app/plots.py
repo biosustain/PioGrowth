@@ -1,3 +1,5 @@
+import io
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -6,6 +8,12 @@ from matplotlib.dates import DateFormatter
 from matplotlib.ticker import FormatStrFormatter
 
 st.cache_data()
+
+
+def create_figure_bytes_to_download(fig: plt.Figure, fmt: str = "pdf") -> io.BytesIO:
+    buf = io.BytesIO()
+    fig.savefig(buf, format=fmt)
+    return buf
 
 
 def plot_growth_data(df_long: pd.DataFrame):
@@ -36,13 +44,14 @@ def plot_growth_data(df_long: pd.DataFrame):
 def plot_growth_data_w_mask(
     df_wide: pd.DataFrame,
     df_mask: pd.DataFrame,
+    sharey: bool = False,
 ) -> plt.Figure:
     """Plot optical density (OD) growth data."""
     # ?check that index is datetime and columns are numeric?
 
     units = df_wide.shape[1]
     fig, axes = plt.subplots(
-        units, 1, figsize=(10, 2 * units), sharey=True, sharex=True, squeeze=False
+        units, 1, figsize=(10, 2 * units), sharey=sharey, sharex=True, squeeze=False
     )
     axes = axes.flatten()
     df_columns = df_wide.columns
@@ -83,6 +92,47 @@ def plot_growth_data_w_mask(
     return fig
 
 
+def plot_growth_data_w_peaks(
+    df_wide: pd.DataFrame,
+    peaks: pd.DataFrame,
+) -> plt.Figure:
+    """Plot optical density (OD) growth data."""
+    # ?check that index is datetime and columns are numeric?
+
+    units = df_wide.shape[1]
+    fig, axes = plt.subplots(
+        units, 1, figsize=(10, 2 * units), sharex=True, squeeze=False
+    )
+    axes = axes.flatten()
+    df_columns = df_wide.columns
+    index_name = df_wide.index.name
+    # grid container (reactive to UI changes)
+    df_wide = df_wide.reset_index()
+    for i, (col, ax) in enumerate(zip(df_columns, axes)):
+        # plot kept values in blue
+        df_wide.plot.scatter(
+            x=index_name,
+            y=col,
+            rot=45,
+            c=f"C{i}",
+            ax=ax,
+            alpha=0.1,
+            s=1,
+            title=f"Reactor: {col}",  # Customize legend text here
+        )
+        # Plot removed values in red
+        peak_times = peaks[col].dropna().index
+        for timepoint in peak_times:
+            ax.axvline(x=timepoint, color="red", alpha=0.5, linestyle="--")
+    ax = axes[-1]
+    date_form = DateFormatter("%Y-%m-%d %H:%M")
+    _ = ax.xaxis.set_major_formatter(date_form)
+    fig = ax.get_figure()
+    fig.tight_layout()
+
+    return fig, axes
+
+
 def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
     rows = (splines.shape[-1] + 1) // 2
     axes = splines.plot.line(
@@ -91,7 +141,7 @@ def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
         subplots=True,
         layout=(-1, 2),
         sharex=True,
-        sharey=True,
+        sharey=False,
         title=titles,
         ylabel=ylabel,
         xlabel="timepoints (rounded)",
@@ -127,6 +177,7 @@ def plot_derivatives(derivatives: pd.DataFrame, titles=None) -> plt.Figure:
         decimal_place = "%.1f"
     for ax in _axes:
         _ = ax.yaxis.set_major_formatter(FormatStrFormatter(decimal_place))
+    ax = _axes[-1]
     fig = ax.get_figure()
     fig.tight_layout()
     return fig, axes

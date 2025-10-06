@@ -17,15 +17,36 @@ st.title("Upload Data")
 container_download_example = st.empty()
 
 ########################################################################################
-# Upload Form
+# Upload File section
+file = st.file_uploader(
+    "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
+    type=["csv", "txt"],
+    # needs callback to clear session state
+)
+if file is None:
+    if df_raw_od_data is not None:
+        st.info("Some data was uploaded before. Processing will apply to that data.")
+    else:
+        with container_download_example:
+            col0, col1 = st.columns(2)
+            # populate columns (could be outside of with statement)
+            col0.warning("no data uploaded.")
+            # clicking triggers a re-run, but that is fast if no data was previously uploaded
+            col1.download_button(
+                label="Download example  pioreactor experiment in csv format.",
+                data=pd.read_csv("data/example_batch_data_od_readings.csv").to_csv(
+                    index=False
+                ),
+                file_name="example_batch_data_od_readings.csv",
+                key="download_example_csv",
+                mime="text/csv",
+            )
+        st.info("Upload a comma-separated (csv) file to get started.")
 
+########################################################################################
+# Filtering Form
 with st.form("Upload_data_form", clear_on_submit=False):
 
-    file = st.file_uploader(
-        "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
-        type=["csv"],
-        # needs callback to clear session state
-    )
     custom_id = st.text_input(
         "Enter custom ID for data",
         max_chars=30,
@@ -85,21 +106,53 @@ with st.form("Upload_data_form", clear_on_submit=False):
         31,
         step=2,
     )
-
+    st.divider()
+    st.write(
+        "Select time window for data to be processed. Dates are inferred from "
+        "uploaded data. This won't be plotted in red as filtered data, but just "
+        "cap the datapoints for reactors outside of the selected time window."
+        "The overall time window bounds the selected time windows for the individual "
+        "reactors."
+    )
     min_date, max_date = None, None
     if df_raw_od_data is not None:
         min_date, max_date = st.select_slider(
-            "Select time window (inferred). This won't be plotted as filtered data.",
+            "Select overall time window (inferred).",
             options=df_raw_od_data["timestamp_rounded"],
             value=(
                 df_raw_od_data["timestamp_rounded"].min(),
                 df_raw_od_data["timestamp_rounded"].max(),
             ),
         )
-    if file is None:
-        button_pressed = st.form_submit_button("Process file", type="primary")
-    else:
-        button_pressed = st.form_submit_button("Re-process file", type="primary")
+    st.divider()
+    if df_wide_raw_od_data is not None:
+        with st.expander("Select time window per reactor"):
+            st.info("Note: Minimum and maximum for slider are reactor specific!")
+            # per reactor, get min and max timestamps
+            time_ranges = dict()
+            for reactor in df_wide_raw_od_data.columns:
+                time_ranges[reactor] = st.select_slider(
+                    f"Select time window (inferred) for {reactor}."
+                    " Bounded by overall time window.",
+                    options=df_wide_raw_od_data[reactor].dropna().index,
+                    value=(
+                        df_wide_raw_od_data[reactor].dropna().index.min(),
+                        df_wide_raw_od_data[reactor].dropna().index.max(),
+                    ),
+                )
+    st.divider()
+    st.write("Plotting options:")
+    use_same_yaxis_scale = st.checkbox(
+        "Use same y-axis for all reactors?",
+        value=False,
+        key="yaxis_scale",
+        help="Select plotting behaviour.",
+    )
+    st.divider()
+    button_pressed = st.form_submit_button(
+        "Apply options to uploaded data", type="primary"
+    )
+
 ########################################################################################
 # Raw data and plots
 
@@ -107,12 +160,17 @@ extra_warn = st.empty()
 
 st.header("Raw OD data")
 container_raw_data = st.empty()
-container_figures = st.empty()
 
 if custom_id:
     st.session_state["custom_id"] = custom_id
 
+if button_pressed and file is None and df_raw_od_data is None:
+    extra_warn.warning("No data uploaded.")
+    st.stop()
 
+msg = ""
+
+# this runs wheather the button is pressed or not, but only if a file is uploaded?
 if file is not None:
     df_raw_od_data = piogrowth.load.read_csv(file)
     msg = (
@@ -123,29 +181,14 @@ if file is not None:
     df_raw_od_data.insert(
         0,
         "timestamp_rounded",
-        df_raw_od_data["timestamp"].dt.round(
+        df_raw_od_data["timestamp_localtime"].dt.round(
             f"{round_time}s",
         ),
     )
+    st.session_state["round_time"] = round_time
     rerun = st.session_state.get("df_raw_od_data") is None
     st.session_state["df_raw_od_data"] = df_raw_od_data
     # re-run now with data set
-    if rerun:
-        # ? replace with callback function that creates the input form?
-        st.rerun()
-
-    # Filter reactors (all measurements from selected reactors)
-    if reactors_selected:
-        st.write(f"Filtering reactors: {reactors_selected}")
-        if isinstance(reactors_selected, str):
-            # make it a list
-            reactors_selected = reactors_selected.split(",")
-            st.write(f"Filtering reactors: {reactors_selected}")
-        mask = df_raw_od_data["pioreactor_unit"].isin(reactors_selected)
-        if filter_option == "Remove":
-            df_raw_od_data = df_raw_od_data.loc[~mask]
-        else:
-            df_raw_od_data = df_raw_od_data.loc[mask]
 
     msg += f"- Wide OD data with rounded timestamps to {round_time} seconds.\n"
     # wide data of raw data
@@ -163,12 +206,41 @@ if file is not None:
             f" please decrease below: {round_time} seconds."
         )
         st.stop()
+    st.session_state["df_wide_raw_od_data"] = df_wide_raw_od_data
+    if rerun:
+        # ? replace with callback function that creates the input form?
+        st.rerun()
 
+
+if button_pressed:
+    # Filter reactors (all measurements from selected reactors)
+    if reactors_selected:
+        st.write(f"Filtering reactors: {reactors_selected}")
+        if isinstance(reactors_selected, str):
+            # make it a list
+            reactors_selected = reactors_selected.split(",")
+            st.write(f"Filtering reactors: {reactors_selected}")
+        mask = df_raw_od_data["pioreactor_unit"].isin(reactors_selected)
+        if filter_option == "Remove":
+            df_raw_od_data = df_raw_od_data.loc[~mask]
+        else:
+            df_raw_od_data = df_raw_od_data.loc[mask]
     # skip first or last measurements based on user input (after first loading the data)
-    # ! won't be plotted as filtered data
+    # ! won't be plotted in red as filtered data, but just not appear in the plots
+    # ! applied to wide raw data
     if min_date:
         df_wide_raw_od_data = df_wide_raw_od_data.loc[min_date:max_date]
         st.info(f"Time range: {min_date} to {max_date}")
+
+    for reactor, time_range in time_ranges.items():
+        if reactor not in df_wide_raw_od_data.columns:
+            continue
+        _min_date, _max_date = time_range
+        _min_date = max(_min_date, min_date)
+        _max_date = min(_max_date, max_date)
+        df_wide_raw_od_data[reactor] = df_wide_raw_od_data.loc[
+            _min_date:_max_date, reactor
+        ]
 
     # initalize masked here
     masked = pd.DataFrame(
@@ -188,7 +260,6 @@ if file is not None:
         df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_negative)
         masked = masked | mask_negative
 
-    st.title("Processing summary of OD readings")
     if remove_max:
         mask_extreme_values = (
             df_wide_raw_od_data_filtered
@@ -230,15 +301,12 @@ if file is not None:
 
     masked = masked.convert_dtypes()
 
-    st.write(msg)
-
     # from pathlib import Path
     # fpath = Path(f"playground/data/{custom_id}_masked_values.csv")
     # fpath.parent.mkdir(exist_ok=True, parents=True)
     # masked.to_csv(fpath)
     # df_wide_raw_od_data.to_csv(Path(f"playground/data/{custom_id}_raw_wide_data.csv"))
     st.session_state["df_wide_raw_od_data_filtered"] = df_wide_raw_od_data_filtered
-    st.session_state["df_wide_raw_od_data"] = df_wide_raw_od_data
     st.session_state["masked"] = masked
 
     df_rolling = df_wide_raw_od_data_filtered.rolling(
@@ -248,32 +316,22 @@ if file is not None:
     ).median()
     st.session_state["df_rolling"] = df_rolling
 
-else:
-    if button_pressed:
-        extra_warn.warning("No data uploaded.")
-    with container_download_example:
-        col0, col1 = st.columns(2)
-        # populate columns (could be outside of with statement)
-        col0.warning("no data uploaded.")
-        # clicking triggers a re-run, but that is fast if no data was previously uploaded
-        col1.download_button(
-            label="Download example  pioreactor experiment in csv format.",
-            data=pd.read_csv("data/example_batch_data_od_readings.csv").to_csv(
-                index=False
-            ),
-            file_name="example_batch_data_od_readings.csv",
-            key="download_example_csv",
-            mime="text/csv",
-        )
 
 with container_raw_data:
     st.dataframe(df_raw_od_data, use_container_width=True)
 
 if df_wide_raw_od_data is not None and masked is not None:
     # Download options
-    fig = plot_growth_data_w_mask(df_wide_raw_od_data, masked)
-    with container_figures:
-        st.write(fig)
+    if not use_same_yaxis_scale:
+        st.warning("Using different y-axis scale for each reactor.")
+    fig = plot_growth_data_w_mask(
+        df_wide_raw_od_data, masked, sharey=use_same_yaxis_scale
+    )
+    st.write(fig)
+
+if msg:
+    st.subheader("Processing summary of OD readings")
+    st.markdown(msg)
 
 if st.session_state.get("df_wide_raw_od_data") is not None:
     download_data_button_in_sidebar(
@@ -300,9 +358,10 @@ if df_rolling is not None:
         file_name="rolling_median_on_filtered_wide_data_with_rounded_timestamps.csv",
     )
 
-st.markdown("### Store in QuervE format")
-convert = st.button("Store in QuervE format", key="store_in_querve")
+st.markdown("### Store in QurvE format")
+st.info("This feature is not yet implemented.")
+# convert = st.button("Store in QurvE format", key="store_in_QurvE")
 
-if convert:
-    st.warning("fct to convert to QuervE not implemented.")
-    # store in state
+# if convert:
+#     st.warning("fct to convert to QurvE not implemented.")
+# store in state

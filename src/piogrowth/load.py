@@ -1,4 +1,5 @@
 """Load PioGrowth data from CSV files."""
+
 import pandas as pd
 
 # specify datecolumns for now
