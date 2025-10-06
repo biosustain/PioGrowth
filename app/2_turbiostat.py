@@ -3,6 +3,7 @@ import functools
 import pandas as pd
 import streamlit as st
 from buttons import create_download_button, download_data_button_in_sidebar
+from names import summary_mapping
 from plots import (
     create_figure_bytes_to_download,
     plot_derivatives,
@@ -21,7 +22,7 @@ def create_summary(maxima: dict[str, pd.Series]) -> pd.DataFrame:
     """Create a summary DataFrame from the maxima dictionary."""
     df_summary = pd.DataFrame(maxima).stack()
     df_summary.index.names = ["timestamp", "pioreactor_unit"]
-    df_summary.name = "max_derivative_value"
+    df_summary.name = "OD_value"
     df_summary = df_summary.to_frame()
     return df_summary
 
@@ -338,7 +339,7 @@ if submitted:
         )
     except ValueError as e:
         st.error(f"Error occurred while creating summary - ValueError: {e}")
-    df_summary = df_summary.swaplevel(0, 1).sort_index()
+    df_summary = df_summary.swaplevel(0, 1).sort_index().rename(columns=summary_mapping)
     st.dataframe(df_summary)
     st.session_state["df_summary"] = df_summary
     download_data_button_in_sidebar(

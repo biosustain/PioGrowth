@@ -1,11 +1,11 @@
-# Curve fitting methods
+## Curve fitting methods
 
-## QurvE approach
+### QurvE approach
 
 - based on approach in QurvE paper, which based it on the approach laid out in
-  grofit R-package. See their 
+  grofit R-package. See their
   [README](https://github.com/NicWir/QurvE?tab=readme-ov-file#growth-profiling-methods)
-  and 
+  and
   [Kahm et.al. 2014](https://www.jstatsoft.org/article/view/v033i07)
 - cubic smoothing spline from R was used:
   [docs](https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/smooth.spline)
@@ -13,7 +13,7 @@
 - the curves were fitted on the log-transformed data of the plots, shifted by the minimal
   value
 
-## This app
+### This app
 
 In this app we use cubic splines using scipy's
 [`make_splrep` function](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.make_splrep.html#scipy.interpolate.make_splrep)

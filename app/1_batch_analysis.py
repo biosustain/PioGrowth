@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
+from names import summary_mapping
 from plots import plot_derivatives, plot_fitted_data
 from ui_components import render_markdown, show_warning_to_upload_data
 
@@ -156,17 +157,17 @@ if form_submit and not no_data_uploaded:
 
     batch_analysis_summary_df = pd.DataFrame(
         {
-            "max_od_timepoint_fitted": maxima_idx,
-            "max_change_in_od": maxima,
-            "reactor_od_rolling_median": [
+            "timpoint": maxima_idx,
+            "max_growth_rate": maxima,
+            "OD_median": [
                 df_rolling.loc[idx, col]
                 for idx, col in zip(maxima_idx, maxima_idx.index)
             ],
-            "reactor_od_in_filtered_data": [
+            "OD_in_filtered_data": [
                 st.session_state["df_wide_raw_od_data_filtered"].loc[idx, col]
                 for idx, col in zip(maxima_idx, maxima_idx.index)
             ],
-            "reactor_od_fitted_spline": [
+            "OD_spline": [
                 splines.loc[idx, col] for idx, col in zip(maxima_idx, maxima_idx.index)
             ],
         }
@@ -174,15 +175,16 @@ if form_submit and not no_data_uploaded:
     # rename maximum range columns and add to summary table
     max_time_range = max_time_range.rename(
         columns={
-            "start": f"max{prop_high:.0%}_growth_start",
-            "end": f"max{prop_high:.0%}_growth_end",
-            "duration": f"max{prop_high:.0%}_growth_duration",
-            "is_continues": f"max{prop_high:.0%}_growth_is_continues",
+            "start": f"max_{prop_high:.0%}_growth_start",
+            "end": f"max_{prop_high:.0%}_growth_end",
+            "duration": f"max_{prop_high:.0%}_growth_duration",
+            "is_continues": f"max_{prop_high:.0%}_growth_is_continues",
         }
     )
     batch_analysis_summary_df = pd.concat(
         [batch_analysis_summary_df, max_time_range], axis=1
-    )
+    ).rename(columns=summary_mapping)
+    st.subheader("Summary of batch analysis")
     st.dataframe(batch_analysis_summary_df, use_container_width=True)
     st.session_state["batch_analysis_summary_df"] = batch_analysis_summary_df
     download_data_button_in_sidebar(
