@@ -49,7 +49,7 @@ df_meta = st.session_state.get("df_meta")
 
 st.markdown(
     "Analyse pioreactor OD600 measurements when running in turbidostat mode. "
-    "In turbistat mode, the growth is diluted to enable continuous growth state "
+    "In turbidostat mode, the growth is diluted to enable continuous growth state "
     "of microorganisms in the reactors."
 )
 

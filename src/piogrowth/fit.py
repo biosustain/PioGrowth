@@ -79,8 +79,8 @@ def fit_spline_and_derivatives_one_batch(
         Smoothing factor for the spline fitting.
 
     Returns:
-        dict[str, pd.DataFrame]: Dictionary containing the fitted spline
-                                 and its derivatives.
+        tuple[pd.DataFrame, pd.DataFrame]: Tuple containing the fitted spline
+                                           and its first derivative.
     """
     assert df.isna().sum().sum() == 0, "Input DataFrame contains NaN values"
     df_fitted = pd.DataFrame(index=df.index)
