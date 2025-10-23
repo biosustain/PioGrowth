@@ -123,7 +123,7 @@ with st.form(key="turbidostat_form"):
             value=None,
         )
         minimum_distance = st.number_input(
-            label="Minimum distance between peaks (in number of samples)",
+            label="Minimum distance between peaks (in number of measurement timepoints)",
             min_value=3,
             value=300,
             step=1,
