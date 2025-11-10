@@ -23,6 +23,11 @@ file = st.file_uploader(
     type=["csv", "txt"],
     # needs callback to clear session state
 )
+keep_core_data = st.checkbox(
+    "Keep only core data columns (timestamp, pioreactor_unit, od_reading)?",
+    value=True,
+    help="If checked, only the essential columns will be kept from the uploaded file.",
+)
 if file is None:
     if df_raw_od_data is not None:
         st.info("Some data was uploaded before. Processing will apply to that data.")
@@ -173,11 +178,13 @@ msg = ""
 # this runs wheather the button is pressed or not, but only if a file is uploaded?
 if file is not None:
     df_raw_od_data = piogrowth.load.read_csv(file)
+    # ! add check that required columns are in data and have correct dtypes (pandera)
     msg = (
         f"- Loaded {df_raw_od_data.shape[0]:,d} rows "
         f"and {df_raw_od_data.shape[1]:,d} columns.\n"
     )
     # round timestamp data
+    # ! 'timestamp_localtime' must be in data (note down requirement)
     df_raw_od_data.insert(
         0,
         "timestamp_rounded",
@@ -187,6 +194,25 @@ if file is not None:
     )
     st.session_state["round_time"] = round_time
     rerun = st.session_state.get("df_raw_od_data") is None
+    # only keep core data?
+    if keep_core_data:
+        try:
+            df_raw_od_data = df_raw_od_data[
+                [
+                    "timestamp_rounded",
+                    "timestamp_localtime",
+                    "pioreactor_unit",
+                    "od_reading",
+                ]
+            ]
+            msg += "- Kept only core data columns.\n"
+        except KeyError as e:
+            st.error(
+                "Could not keep only core data columns. "
+                "Please check that the uploaded file contains "
+                "the required columns: timestamp_localtime, pioreactor_unit, od_reading."
+            )
+            st.stop()
     st.session_state["df_raw_od_data"] = df_raw_od_data
     # re-run now with data set
 
@@ -318,7 +344,7 @@ if button_pressed:
 
 
 with container_raw_data:
-    st.dataframe(df_raw_od_data, use_container_width=True)
+    st.dataframe(df_raw_od_data, use_container_width=False)
 
 if df_wide_raw_od_data is not None and masked is not None:
     # Download options
@@ -333,10 +359,17 @@ if msg:
     st.subheader("Processing summary of OD readings")
     st.markdown(msg)
 
+if st.session_state.get("df_raw_od_data") is not None:
+    download_data_button_in_sidebar(
+        "df_raw_od_data",
+        "Download raw data  \n(long format)",
+        file_name="data_long_rounded_timestamps.csv",
+    )
+
 if st.session_state.get("df_wide_raw_od_data") is not None:
     download_data_button_in_sidebar(
         "df_wide_raw_od_data",
-        "Download raw data",
+        "Download raw data  \n(wide format)",
         file_name="data_wide_rounded_timestamps.csv",
     )
 if st.session_state.get("df_wide_raw_od_data_filtered") is not None:
