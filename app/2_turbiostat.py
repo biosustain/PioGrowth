@@ -225,7 +225,7 @@ if submitted:
             st.session_state["show_error"] = True
             st.rerun()
 
-        st.dataframe(peaks, use_container_width=True)
+        st.dataframe(peaks, width="stretch")
     else:
         st.subheader("Detected peaks")
         st.write(
