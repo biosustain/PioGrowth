@@ -53,7 +53,10 @@ st.markdown(
     "In turbidostat mode, the growth is diluted to enable continuous growth state "
     "of microorganisms in the reactors."
 )
-
+st.info(
+    "Data is plotted using measured timepoints (in seconds), and the modeling is done "
+    "using elapsed seconds since the initial timepoint."
+)
 ### Form
 with st.form(key="turbidostat_form"):
     turbiostat_meta = st.file_uploader(
@@ -225,14 +228,18 @@ if submitted:
             st.session_state["show_error"] = True
             st.rerun()
 
-        st.dataframe(peaks, use_container_width=True)
+        st.dataframe(peaks, width="stretch")
     else:
         st.subheader("Detected peaks")
         st.write(
             "Note: Peaks are detected using "
             "[`scipy.signal.find_peaks`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html)"
         )
-        st.write(f"Minimum distance between peaks: {minimum_peak_height} samples")
+        if minimum_peak_height is not None:
+            st.write(
+                "Minimum distance between peaks: "
+                f"{minimum_peak_height} number of measured timepoints"
+            )
         _detect_peaks = functools.partial(
             detect_peaks,
             distance=minimum_distance,

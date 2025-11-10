@@ -192,6 +192,11 @@ if file is not None:
             f"{round_time}s",
         ),
     )
+    start_time = df_raw_od_data["timestamp_rounded"].min()
+    df_raw_od_data["elapsed_time"] = (
+        df_raw_od_data["timestamp_rounded"] - start_time
+    ).dt.total_seconds()
+    msg += f"- Added elapsed time in seconds since start ({start_time}).\n"
     st.session_state["round_time"] = round_time
     rerun = st.session_state.get("df_raw_od_data") is None
     # only keep core data?
@@ -201,6 +206,7 @@ if file is not None:
                 [
                     "timestamp_rounded",
                     "timestamp_localtime",
+                    "elapsed_time",
                     "pioreactor_unit",
                     "od_reading",
                 ]
