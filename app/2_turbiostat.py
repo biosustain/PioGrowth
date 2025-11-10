@@ -53,7 +53,10 @@ st.markdown(
     "In turbidostat mode, the growth is diluted to enable continuous growth state "
     "of microorganisms in the reactors."
 )
-
+st.info(
+    "Data is plotted using measured timepoints (in seconds), and the modeling is done "
+    "using elapsed seconds since the initial timepoint."
+)
 ### Form
 with st.form(key="turbidostat_form"):
     turbiostat_meta = st.file_uploader(
