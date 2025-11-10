@@ -344,7 +344,7 @@ if button_pressed:
 
 
 with container_raw_data:
-    st.dataframe(df_raw_od_data, use_container_width=False)
+    st.dataframe(df_raw_od_data, width="content")
 
 if df_wide_raw_od_data is not None and masked is not None:
     # Download options
