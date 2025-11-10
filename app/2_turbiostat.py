@@ -232,7 +232,11 @@ if submitted:
             "Note: Peaks are detected using "
             "[`scipy.signal.find_peaks`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html)"
         )
-        st.write(f"Minimum distance between peaks: {minimum_peak_height} samples")
+        if minimum_peak_height is not None:
+            st.write(
+                "Minimum distance between peaks: "
+                f"{minimum_peak_height} number of measured timepoints"
+            )
         _detect_peaks = functools.partial(
             detect_peaks,
             distance=minimum_distance,
