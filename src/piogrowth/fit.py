@@ -2,6 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_datetime64_any_dtype  # , is_numeric_dtype
 from scipy.interpolate import make_splrep, splev
 
 SmoothingRange = namedtuple("SmoothingRange", ["s_min", "s", "s_max"])
@@ -40,7 +41,8 @@ def fit_spline_and_derivatives(
         raise ValueError(
             "Not enough data points to fit a spline. Need at least 4 non-NaN values."
         )
-
+    if not is_datetime64_any_dtype(s.index.dtype):
+        raise TypeError("Index of the input Series must be datetime type.")
     x = (s.index - s.index[0]).total_seconds().to_numpy()
 
     bspl = make_splrep(
