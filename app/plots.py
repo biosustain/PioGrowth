@@ -45,6 +45,7 @@ def plot_growth_data_w_mask(
     df_wide: pd.DataFrame,
     df_mask: pd.DataFrame,
     sharey: bool = False,
+    is_data_index: bool = True,
 ) -> plt.Figure:
     """Plot optical density (OD) growth data."""
     # ?check that index is datetime and columns are numeric?
@@ -87,14 +88,16 @@ def plot_growth_data_w_mask(
     fig = ax.get_figure()
     fig.tight_layout()
 
-    date_form = DateFormatter("%Y-%m-%d %H:%M")
-    _ = ax.xaxis.set_major_formatter(date_form)
+    if is_data_index:
+        date_form = DateFormatter("%Y-%m-%d %H:%M")
+        _ = ax.xaxis.set_major_formatter(date_form)
     return fig
 
 
 def plot_growth_data_w_peaks(
     df_wide: pd.DataFrame,
     peaks: pd.DataFrame,
+    is_data_index: bool = True,
 ) -> plt.Figure:
     """Plot optical density (OD) growth data."""
     # ?check that index is datetime and columns are numeric?
@@ -125,8 +128,9 @@ def plot_growth_data_w_peaks(
         for timepoint in peak_times:
             ax.axvline(x=timepoint, color="red", alpha=0.5, linestyle="--")
     ax = axes[-1]
-    date_form = DateFormatter("%Y-%m-%d %H:%M")
-    _ = ax.xaxis.set_major_formatter(date_form)
+    if is_data_index:
+        date_form = DateFormatter("%Y-%m-%d %H:%M")
+        _ = ax.xaxis.set_major_formatter(date_form)
     fig = ax.get_figure()
     fig.tight_layout()
 
