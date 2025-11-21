@@ -1,4 +1,5 @@
 # PioGrowth
+
 Repository for Streamlit app for analysis of optical density (OD) measurements
 produced mainly with a [PioReactor](https://pioreactor.com/)
 
@@ -12,8 +13,8 @@ The code translated to Python was based on the original R code from the Shiny ap
 
 ## Install and start app
 
-In a new environment you can install the app using the app's 
-[`requirements.txt`](app/requirements.txt)
+In a new environment you can install the app using the app's
+[`requirements.txt`](requirements.txt)
 
 ```bash
 pip install -r app/requirements.txt
@@ -35,8 +36,7 @@ pip install -e ".[dev]"
 
 ## History
 
-The joint app combining three Shiny apps for PioReactor tools was started as the 
-three individual apps mentioned above using shiny, but never completed. You can find the 
-last development version in the original repository of this fork 
+The joint app combining three Shiny apps for PioReactor tools was started as the
+three individual apps mentioned above using shiny, but never completed. You can find the
+last development version in the original repository of this fork
 (see: [milnus/PioGrowth](https://github.com/milnus/PioGrowth)).
-
