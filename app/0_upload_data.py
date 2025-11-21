@@ -186,6 +186,7 @@ msg = ""
 # this runs wheather the button is pressed or not, but only if a file is uploaded?
 if file is not None:
     df_raw_od_data = piogrowth.load.read_csv(file)
+
     # ! add check that required columns are in data and have correct dtypes (pandera)
     msg = (
         f"- Loaded {df_raw_od_data.shape[0]:,d} rows "
@@ -234,17 +235,31 @@ if file is not None:
     # wide data of raw data
     # - can be used in plot for visualization,
     # - and in curve fitting (where gaps would be interpolated)
+    N_before = df_raw_od_data.shape[0]
+    df_raw_od_data = df_raw_od_data.dropna(
+        subset=["timestamp_rounded", "pioreactor_unit", "od_reading"]
+    )
+    N_after = df_raw_od_data.shape[0]
+    N_dropped = N_before - N_after
+    if N_dropped > 0:
+        msg += (
+            f"- Dropped {N_dropped:,d} rows with missing values in core columns "
+            "(timestamp_rounded, pioreactor_unit, od_reading).\n"
+        )
     try:
         df_wide_raw_od_data = df_raw_od_data.pivot(
             index="timestamp_rounded",
             columns="pioreactor_unit",
             values="od_reading",
         )
-    except ValueError:
+    except ValueError as e:
         st.error(
             "Rounding produced duplicated timepoints in reactors,"
             f" please decrease below: {round_time} seconds."
         )
+        with st.expander("Show error details"):
+            st.write(e)
+            st.write(df_raw_od_data)
         st.stop()
     st.session_state["df_wide_raw_od_data"] = df_wide_raw_od_data
     if rerun:
