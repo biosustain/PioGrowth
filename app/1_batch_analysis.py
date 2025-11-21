@@ -57,7 +57,7 @@ with st.form("Batch_processing_options", enter_to_submit=True):
 if not no_data_uploaded:
     with view_data_module:
         with st.expander("Data used for analysis (rolling median data):"):
-            st.dataframe(st.session_state["df_rolling"], use_container_width=False)
+            st.dataframe(st.session_state["df_rolling"], width="content")
 
 # Process button
 if form_submit and not no_data_uploaded:
@@ -113,7 +113,7 @@ if form_submit and not no_data_uploaded:
     st.markdown(msg)
     st.title("Fitted splines")
     with st.expander("Show fitted splines data:"):
-        st.dataframe(splines, use_container_width=False)
+        st.dataframe(splines, width="content")
     fig, axes = plot_fitted_data(splines, titles=titles, ylabel=Y_LABEL)
     axes = axes.flatten()
     if not remove_raw_data:
@@ -143,7 +143,7 @@ if form_submit and not no_data_uploaded:
 
     st.title("First order derivatives")
     with st.expander("Show first derivative data:"):
-        st.dataframe(derivatives, use_container_width=False)
+        st.dataframe(derivatives, width="content")
     fig, axes = plot_derivatives(derivatives=derivatives, titles=titles)
     axes = axes.flatten()
     for ax, x in zip(axes, maxima_idx):
@@ -185,7 +185,7 @@ if form_submit and not no_data_uploaded:
         [batch_analysis_summary_df, max_time_range], axis=1
     ).rename(columns=summary_mapping)
     st.subheader("Summary of batch analysis")
-    st.dataframe(batch_analysis_summary_df, use_container_width=False)
+    st.dataframe(batch_analysis_summary_df, width="content")
     st.session_state["batch_analysis_summary_df"] = batch_analysis_summary_df
     download_data_button_in_sidebar(
         "batch_analysis_summary_df",
