@@ -112,7 +112,12 @@ def plot_growth_data_w_peaks(
     return fig, axes
 
 
-def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
+def plot_fitted_data(
+    splines,
+    titles=None,
+    ylabel="OD readings",
+    xlabel="timepoints (rounded)",
+):
     rows = (splines.shape[-1] + 1) // 2
     axes = splines.plot.line(
         style=".",
@@ -123,7 +128,7 @@ def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
         sharey=False,
         title=titles,
         ylabel=ylabel,
-        xlabel="timepoints (rounded)",
+        xlabel=xlabel,
         legend=False,
         figsize=(10, rows * 2),
     )
@@ -133,7 +138,9 @@ def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
     return fig, axes
 
 
-def plot_derivatives(derivatives: pd.DataFrame, titles=None) -> plt.Figure:
+def plot_derivatives(
+    derivatives: pd.DataFrame, titles=None, xlabel: str = "timepoints (rounded)"
+) -> plt.Figure:
     rows = (derivatives.shape[-1] + 1) // 2
     axes = derivatives.plot.line(
         style=".",
@@ -142,7 +149,7 @@ def plot_derivatives(derivatives: pd.DataFrame, titles=None) -> plt.Figure:
         layout=(-1, 2),
         title=titles,
         ylabel="1st derivative",
-        xlabel="timepoints (rounded)",
+        xlabel=xlabel,
         legend=False,
         sharex=True,
         sharey=False,
