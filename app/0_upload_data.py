@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
-from plots import plot_growth_data_w_mask
+from plots import plot_growth_data_w_mask, reindex_w_relative_time
 
 import piogrowth
 
@@ -17,6 +17,7 @@ use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
 
 st.title("Upload Data")
 container_download_example = st.empty()
+
 
 ########################################################################################
 # Upload File section
@@ -393,13 +394,11 @@ if df_wide_raw_od_data is not None and masked is not None:
     if not use_same_yaxis_scale:
         st.warning("Using different y-axis scale for each reactor.")
     if use_elapsed_time:
-        var_in_df_time_map = "elapsed_time_in_hours"
-        elapsed_time_map = df_time_map[var_in_df_time_map].squeeze().to_dict()
-        df_wide_raw_od_data = df_wide_raw_od_data.rename(
-            index=elapsed_time_map
-        ).rename_axis(var_in_df_time_map.replace("_", " "))
-        masked = masked.rename(index=elapsed_time_map).rename_axis(
-            var_in_df_time_map.replace("_", " ")
+        df_wide_raw_od_data = reindex_w_relative_time(
+            df=df_wide_raw_od_data,
+        )
+        masked = reindex_w_relative_time(
+            df=masked,
         )
     fig = plot_growth_data_w_mask(
         df_wide_raw_od_data,
@@ -440,10 +439,8 @@ if df_rolling is not None:
 
     if use_elapsed_time:
         # Map the index (timestamp_rounded) to elapsed_time_in_hours
-        var_in_df_time_map = "elapsed_time_in_hours"
-        elapsed_time_map = df_time_map[var_in_df_time_map].squeeze()
-        df_rolling = df_rolling.rename(index=elapsed_time_map.to_dict()).rename_axis(
-            var_in_df_time_map.replace("_", " ")
+        df_rolling = reindex_w_relative_time(
+            df=df_rolling,
         )
 
     ax = df_rolling.plot.line(style=".", ms=2)

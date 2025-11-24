@@ -160,3 +160,47 @@ def plot_derivatives(derivatives: pd.DataFrame, titles=None) -> plt.Figure:
     fig = ax.get_figure()
     fig.tight_layout()
     return fig, axes
+
+
+def reindex_w_relative_time(
+    df: pd.DataFrame,
+    df_time_map: pd.DataFrame = None,
+    time_col_to_use: str = "elapsed_time_in_hours",
+) -> pd.DataFrame:
+    """Reindex the DataFrame to use relative time as the index.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        Data to reindex.
+    df_time_map : pd.DataFrame, optional
+        Mapping of timestamps to relative time, by default None
+        If None, will try to use `st.session_state["df_time_map"]`.
+    time_col_to_use : str, optional
+        Column to use for relative time, by default "elapsed_time_in_hours"
+
+    Returns
+    -------
+    pd.DataFrame
+        Reindexed DataFrame.
+
+    Raises
+    ------
+    ValueError
+        If df_time_map is not provided and not found in session state.
+    """
+    if df_time_map is None:
+        df_time_map = st.session_state["df_time_map"]
+    if df_time_map is None:
+        raise ValueError(
+            "df_time_map must be provided either as argument or be in the "
+            "session state."
+        )
+    # Map the index (timestamp_rounded) to elapsed_time_in_hours
+    elapsed_time_map = df_time_map[time_col_to_use].squeeze()
+    df = df.rename(
+        index=elapsed_time_map.to_dict(),
+    ).rename_axis(
+        time_col_to_use.replace("_", " "),
+    )
+    return df
