@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_datetime64_any_dtype  # , is_numeric_dtype
+from pandas.api.types import is_datetime64_any_dtype
 from scipy.interpolate import make_splrep, splev
 
 SmoothingRange = namedtuple("SmoothingRange", ["s_min", "s", "s_max"])
