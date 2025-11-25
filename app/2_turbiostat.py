@@ -264,13 +264,13 @@ if remove_downward_trending:
 
 # views for plotting to allow for elapsed time option
 df_rolling_view = df_rolling
-peaks_view = peaks
+peaks_view = peaks.copy()  # ! pointer only works if passed to a function
 xlabel = "timepoints (rounded)"
 if use_elapsed_time:
     # reindex all data to elapsed time for plotting
     xlabel = "elapsed time (in hours)"
     df_rolling_view = reindex_w_relative_time(df_rolling)
-    peaks_view = reindex_w_relative_time(peaks)
+    # alternative for reindex_w_relative_time
     peaks_view.index = (
         pd.to_datetime(peaks.index) - st.session_state["start_time"]
     ).total_seconds() / 3_600
