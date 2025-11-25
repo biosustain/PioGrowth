@@ -202,7 +202,9 @@ if file is not None:
             f"{round_time}s",
         ),
     )
+    # use starttime to compute elapsed time
     start_time = df_raw_od_data["timestamp_rounded"].min()
+    st.session_state["start_time"] = start_time
     df_raw_od_data["elapsed_time"] = (
         df_raw_od_data["timestamp_rounded"] - start_time
     ).dt.total_seconds()
