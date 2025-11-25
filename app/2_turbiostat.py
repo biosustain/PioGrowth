@@ -315,7 +315,9 @@ download_data_button_in_sidebar(
 prop_high = high_percentage_threshold / 100
 cutoffs = df_first_derivative.max() * prop_high
 in_high_growth = df_first_derivative.ge(cutoffs, axis=1)
+# ToDo: do this for each segment between peaks
 max_time_range = in_high_growth.apply(find_max_range, axis=0).T.convert_dtypes()
+# st.write(max_time_range)
 
 splines_view = splines
 d_maxima_view = pd.DataFrame(d_maxima)
