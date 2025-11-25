@@ -113,7 +113,7 @@ if form_submit and not no_data_uploaded:
     The maximum change in OD (fitted) and it's timepoint is mentioned in the title of
     each plot. The selected range within the **gray shaded area** indicates the time
     period where the growth rate was above {prop_high:.0%} of the maximum growth rate - if
-    this range was continous and had no spikes.
+    this range was continuous and had no spikes.
     """
     st.markdown(msg)
     st.title("Fitted splines")
@@ -146,7 +146,7 @@ if form_submit and not no_data_uploaded:
     for ax, col in zip(axes, derivatives.columns):
         row = max_time_range.loc[col]
         if row.is_continues:
-            # only plot span if the time range is continous (no jumps)
+            # only plot span if the time range is continuous (no jumps)
             _start = row.start
             _end = row.end
             if use_elapsed_time:
@@ -161,7 +161,7 @@ if form_submit and not no_data_uploaded:
             x = (derivatives.index - x_center).total_seconds().to_numpy()
             y = b * x + y_center
             mask = (y < splines_view[col].max()) & (y > splines_view[col].min())
-            # only plot tangent if the time range is continous (no jumps)
+            # only plot tangent if the time range is continuous (no jumps)
             ax.plot(derivatives_view.index[mask], y[mask], color="blue", linestyle="--")
         del x, y, b, x_center, y_center, mask
     st.write(fig)
@@ -178,7 +178,7 @@ if form_submit and not no_data_uploaded:
     for ax, col in zip(axes, derivatives.columns):
         row = max_time_range.loc[col]
         if row.is_continues:
-            # only plot span if the time range is continous (no jumps)
+            # only plot span if the time range is continuous (no jumps)
             _start = row.start
             _end = row.end
             if use_elapsed_time:

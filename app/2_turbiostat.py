@@ -343,7 +343,7 @@ for ax, col in zip(axes, df_first_derivative.columns):
         _start = (row.start - st.session_state["start_time"]).total_seconds() / 3600
         _end = (row.end - st.session_state["start_time"]).total_seconds() / 3600
     if row.is_continues:
-        # only plot span if the time range is continous (no jumps)
+        # only plot span if the time range is continuous (no jumps)
         ax.axvspan(_start, _end, color="gray", alpha=0.2)
 st.subheader("Fitted splines per segment")
 st.pyplot(fig)
