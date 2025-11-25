@@ -13,7 +13,7 @@ df_rolling = st.session_state.get("df_rolling")
 df_time_map = st.session_state.get("df_time_map")
 masked = st.session_state.get("masked")
 min_periods = st.session_state.get("min_periods", 5)
-use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
+# use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
 
 st.title("Upload Data")
 container_download_example = st.empty()
