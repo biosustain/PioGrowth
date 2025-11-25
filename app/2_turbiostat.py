@@ -9,6 +9,7 @@ from plots import (
     plot_derivatives,
     plot_fitted_data,
     plot_growth_data_w_peaks,
+    reindex_w_relative_time,
 )
 from ui_components import show_warning_to_upload_data
 
@@ -36,17 +37,23 @@ def reset_metadata():
     st.session_state["df_meta"] = None
 
 
-## UI
+########################################################################################
+# state
+
+use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
+df_time_map = st.session_state.get("df_time_map")
+no_data_uploaded = st.session_state.get("df_rolling") is None
+df_rolling = st.session_state.get("df_rolling")
+df_meta = st.session_state.get("df_meta")
+round_time = st.session_state.get("round_time", 60)
+########################################################################################
+# UI
 
 st.title("Growth Analysis of turbidostat mode")
-
-no_data_uploaded = st.session_state.get("df_rolling") is None
 
 if no_data_uploaded:
     show_warning_to_upload_data()
     st.stop()
-
-df_meta = st.session_state.get("df_meta")
 
 st.markdown(
     "Analyse pioreactor OD600 measurements when running in turbidostat mode. "
@@ -183,9 +190,6 @@ if turbiostat_meta is None and df_meta is not None:
         " Reset app to use automatic peak picking."
     )
 
-round_time = st.session_state.get("round_time", 60)
-df_rolling = st.session_state.get("df_rolling")
-
 if turbiostat_meta is not None:
     st.subheader("Uploaded metadata of dilution events (optional)")
     df_meta = pd.read_csv(
@@ -220,7 +224,7 @@ if df_meta is not None:
         st.stop()
     try:
         peaks = df_meta.pivot(
-            index=col_timestamp,
+            index="timestamp_rounded",
             columns=col_reactors,
             values=col_message,
         )
@@ -257,7 +261,23 @@ if remove_downward_trending:
     st.info(
         "Downward trending data points (negative OD changes) were removed globally."
     )
-fig, axes = plot_growth_data_w_peaks(df_rolling, peaks)
+
+# views for plotting to allow for elapsed time option
+df_rolling_view = df_rolling
+peaks_view = peaks
+xlabel = "timepoints (rounded)"
+if use_elapsed_time:
+    # reindex all data to elapsed time for plotting
+    xlabel = "elapsed time (in hours)"
+    df_rolling_view = reindex_w_relative_time(df_rolling)
+    peaks_view = reindex_w_relative_time(peaks)
+    peaks_view.index = (
+        pd.to_datetime(peaks.index) - st.session_state["start_time"]
+    ).total_seconds() / 3_600
+    peaks_view.index.name = "elapsed time in hours"
+fig, axes = plot_growth_data_w_peaks(
+    df_rolling_view, peaks_view, is_data_index=not use_elapsed_time
+)
 st.pyplot(fig)
 
 with st.sidebar:
@@ -297,18 +317,32 @@ cutoffs = df_first_derivative.max() * prop_high
 in_high_growth = df_first_derivative.ge(cutoffs, axis=1)
 max_time_range = in_high_growth.apply(find_max_range, axis=0).T.convert_dtypes()
 
+splines_view = splines
+d_maxima_view = pd.DataFrame(d_maxima)
+if use_elapsed_time:
+    # reindex all data to elapsed time for plotting
+    splines_view = reindex_w_relative_time(splines)
+    d_maxima_view = reindex_w_relative_time(d_maxima_view)
+
 fig, axes = plot_fitted_data(
-    splines,
+    splines_view,
+    xlabel=xlabel,
 )
 axes = axes.flatten()
-for ax, s_maxima in zip(axes, d_maxima.values()):
+for ax, _col in zip(axes, d_maxima_view.columns):
+    s_maxima = d_maxima_view[_col].dropna()
     for x in s_maxima.index:
         ax.axvline(x=x, color="red", linestyle="--")
 for ax, col in zip(axes, df_first_derivative.columns):
     row = max_time_range.loc[col]
+    _start = row.start
+    _end = row.end
+    if use_elapsed_time:
+        _start = (row.start - st.session_state["start_time"]).total_seconds() / 3600
+        _end = (row.end - st.session_state["start_time"]).total_seconds() / 3600
     if row.is_continues:
         # only plot span if the time range is continous (no jumps)
-        ax.axvspan(row.start, row.end, color="gray", alpha=0.2)
+        ax.axvspan(_start, _end, color="gray", alpha=0.2)
 st.subheader("Fitted splines per segment")
 st.pyplot(fig)
 
@@ -323,7 +357,12 @@ with st.sidebar:
 
 st.subheader("First Derivative of fitted splines per segment")
 
-fig, axes = plot_derivatives(df_first_derivative)
+df_first_derivative_view = df_first_derivative
+if use_elapsed_time:
+    # reindex all data to elapsed time for plotting
+    df_first_derivative_view = reindex_w_relative_time(df_first_derivative)
+
+fig, axes = plot_derivatives(df_first_derivative_view)
 st.pyplot(fig)
 
 with st.sidebar:
