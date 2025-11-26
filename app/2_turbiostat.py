@@ -268,13 +268,10 @@ peaks_view = peaks.copy()  # ! pointer only works if passed to a function
 xlabel = "timepoints (rounded)"
 if use_elapsed_time:
     # reindex all data to elapsed time for plotting
-    xlabel = "elapsed time (in hours)"
+    xlabel = DEFAULT_XLABEL_REL
     df_rolling_view = reindex_w_relative_time(df_rolling)
+    peaks_view = reindex_w_relative_time(peaks)
     # alternative for reindex_w_relative_time
-    peaks_view.index = (
-        pd.to_datetime(peaks.index) - st.session_state["start_time"]
-    ).total_seconds() / 3_600
-    peaks_view.index.name = "elapsed time in hours"
 fig, axes = plot_growth_data_w_peaks(
     df_rolling_view, peaks_view, is_data_index=not use_elapsed_time
 )
