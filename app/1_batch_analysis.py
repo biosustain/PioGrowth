@@ -3,24 +3,30 @@ import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
 from names import summary_mapping
-from plots import plot_derivatives, plot_fitted_data
+from plots import plot_derivatives, plot_fitted_data, reindex_w_relative_time
 from ui_components import render_markdown, show_warning_to_upload_data
 
 from piogrowth.durations import find_max_range
 from piogrowth.fit import fit_spline_and_derivatives_one_batch, get_smoothing_range
 
 ########################################################################################
+# state
+
+use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
+df_time_map = st.session_state.get("df_time_map")
+no_data_uploaded = st.session_state.get("df_rolling") is None
+df_rolling = st.session_state.get("df_rolling")
+
+DEFAULT_XLABEL_TPS = st.session_state.get("DEFAULT_XLABEL_TPS", "Timepoints (rounded)")
+DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (hours)")
+########################################################################################
 # page
 
 st.header("Batch Growth Analysis")
 
-no_data_uploaded = st.session_state.get("df_rolling") is None
-
 if no_data_uploaded:
     show_warning_to_upload_data()
     st.stop()
-
-df_rolling = st.session_state["df_rolling"]  # .interpolate()
 
 smoothing_range = get_smoothing_range(len(df_rolling))
 
@@ -57,7 +63,7 @@ with st.form("Batch_processing_options", enter_to_submit=True):
 if not no_data_uploaded:
     with view_data_module:
         with st.expander("Data used for analysis (rolling median data):"):
-            st.dataframe(st.session_state["df_rolling"], use_container_width=True)
+            st.dataframe(st.session_state["df_rolling"], width="content")
 
 # Process button
 if form_submit and not no_data_uploaded:
@@ -108,26 +114,46 @@ if form_submit and not no_data_uploaded:
     The maximum change in OD (fitted) and it's timepoint is mentioned in the title of
     each plot. The selected range within the **gray shaded area** indicates the time
     period where the growth rate was above {prop_high:.0%} of the maximum growth rate - if
-    this range was continous and had no spikes.
+    this range was continuous and had no spikes.
     """
     st.markdown(msg)
     st.title("Fitted splines")
     with st.expander("Show fitted splines data:"):
-        st.dataframe(splines, use_container_width=True)
-    fig, axes = plot_fitted_data(splines, titles=titles, ylabel=Y_LABEL)
+        st.dataframe(splines, width="content")
+    # views for plotting to allow for elapsed time option
+    splines_view = splines
+    derivatives_view = derivatives
+    df_rolling_view = df_rolling
+    maxima_idx_view = maxima_idx
+    xlabel = DEFAULT_XLABEL_TPS
+    if use_elapsed_time:
+        # reindex all data to elapsed time for plotting
+        splines_view = reindex_w_relative_time(splines)
+        derivatives_view = reindex_w_relative_time(derivatives)
+        xlabel = DEFAULT_XLABEL_REL
+        df_rolling_view = reindex_w_relative_time(df_rolling)
+        maxima_idx_view = derivatives_view.idxmax()
+    fig, axes = plot_fitted_data(
+        splines_view, titles=titles, ylabel=Y_LABEL, xlabel=xlabel
+    )
     axes = axes.flatten()
     if not remove_raw_data:
-        for col, ax in zip(df_rolling.columns, axes):
-            df_rolling[col].plot(
+        for col, ax in zip(df_rolling_view.columns, axes):
+            df_rolling_view[col].plot(
                 ax=ax, c="black", style=".", alpha=0.3, ms=1, label="Raw data"
             )
-    for ax, x in zip(axes, maxima_idx):
+    for ax, x in zip(axes, maxima_idx_view):
         ax.axvline(x=x, color="red", linestyle="--")
     for ax, col in zip(axes, derivatives.columns):
         row = max_time_range.loc[col]
         if row.is_continues:
-            # only plot span if the time range is continous (no jumps)
-            ax.axvspan(row.start, row.end, color="gray", alpha=0.2)
+            # only plot span if the time range is continuous (no jumps)
+            _start = row.start
+            _end = row.end
+            if use_elapsed_time:
+                _start = (row.start - df_rolling.index[0]).total_seconds() / 3600
+                _end = (row.end - df_rolling.index[0]).total_seconds() / 3600
+            ax.axvspan(_start, _end, color="gray", alpha=0.2)
     if add_tangent_of_mu_max:
         for ax, col in zip(axes, derivatives.columns):
             b = maxima.loc[col]
@@ -135,24 +161,31 @@ if form_submit and not no_data_uploaded:
             y_center = splines.loc[x_center, col]
             x = (derivatives.index - x_center).total_seconds().to_numpy()
             y = b * x + y_center
-            mask = (y < splines[col].max()) & (y > splines[col].min())
-            # only plot tangent if the time range is continous (no jumps)
-            ax.plot(derivatives.index[mask], y[mask], color="blue", linestyle="--")
+            mask = (y < splines_view[col].max()) & (y > splines_view[col].min())
+            # only plot tangent if the time range is continuous (no jumps)
+            ax.plot(derivatives_view.index[mask], y[mask], color="blue", linestyle="--")
         del x, y, b, x_center, y_center, mask
     st.write(fig)
 
     st.title("First order derivatives")
     with st.expander("Show first derivative data:"):
-        st.dataframe(derivatives, use_container_width=True)
-    fig, axes = plot_derivatives(derivatives=derivatives, titles=titles)
+        st.dataframe(derivatives, width="content")
+    fig, axes = plot_derivatives(
+        derivatives=derivatives_view, titles=titles, xlabel=xlabel
+    )
     axes = axes.flatten()
-    for ax, x in zip(axes, maxima_idx):
+    for ax, x in zip(axes, maxima_idx_view):
         ax.axvline(x=x, color="red", linestyle="--")
     for ax, col in zip(axes, derivatives.columns):
         row = max_time_range.loc[col]
         if row.is_continues:
-            # only plot span if the time range is continous (no jumps)
-            ax.axvspan(row.start, row.end, color="gray", alpha=0.2)
+            # only plot span if the time range is continuous (no jumps)
+            _start = row.start
+            _end = row.end
+            if use_elapsed_time:
+                _start = (row.start - df_rolling.index[0]).total_seconds() / 3600
+                _end = (row.end - df_rolling.index[0]).total_seconds() / 3600
+            ax.axvspan(_start, _end, color="gray", alpha=0.2)
     st.write(fig)
 
     batch_analysis_summary_df = pd.DataFrame(
@@ -185,7 +218,7 @@ if form_submit and not no_data_uploaded:
         [batch_analysis_summary_df, max_time_range], axis=1
     ).rename(columns=summary_mapping)
     st.subheader("Summary of batch analysis")
-    st.dataframe(batch_analysis_summary_df, use_container_width=True)
+    st.dataframe(batch_analysis_summary_df, width="content")
     st.session_state["batch_analysis_summary_df"] = batch_analysis_summary_df
     download_data_button_in_sidebar(
         "batch_analysis_summary_df",

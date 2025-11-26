@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
-from plots import plot_growth_data_w_mask
+from plots import plot_growth_data_w_mask, reindex_w_relative_time
 
 import piogrowth
 
@@ -10,11 +10,14 @@ df_raw_od_data = st.session_state["df_raw_od_data"]
 df_wide_raw_od_data = st.session_state.get("df_wide_raw_od_data")
 df_wide_raw_od_data_filtered = st.session_state.get("df_wide_raw_od_data_filtered")
 df_rolling = st.session_state.get("df_rolling")
+df_time_map = st.session_state.get("df_time_map")
 masked = st.session_state.get("masked")
 min_periods = st.session_state.get("min_periods", 5)
+# use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
 
 st.title("Upload Data")
 container_download_example = st.empty()
+
 
 ########################################################################################
 # Upload File section
@@ -153,6 +156,12 @@ with st.form("Upload_data_form", clear_on_submit=False):
         key="yaxis_scale",
         help="Select plotting behaviour.",
     )
+    use_elapsed_time = st.checkbox(
+        "Use elapsed time (since start) as x-axis?",
+        value=True,
+        key="elapsed_time_option",
+        help="If checked, elapsed time will be used as x-axis in plots.",
+    )
     st.divider()
     button_pressed = st.form_submit_button(
         "Apply options to uploaded data", type="primary"
@@ -193,6 +202,13 @@ if file is not None:
             f"{round_time}s",
         ),
     )
+    # use starttime to compute elapsed time
+    start_time = df_raw_od_data["timestamp_rounded"].min()
+    st.session_state["start_time"] = start_time
+    df_raw_od_data["elapsed_time"] = (
+        df_raw_od_data["timestamp_rounded"] - start_time
+    ).dt.total_seconds()
+    msg += f"- Added elapsed time in seconds since start ({start_time}).\n"
     st.session_state["round_time"] = round_time
     rerun = st.session_state.get("df_raw_od_data") is None
     # only keep core data?
@@ -202,6 +218,7 @@ if file is not None:
                 [
                     "timestamp_rounded",
                     "timestamp_localtime",
+                    "elapsed_time",
                     "pioreactor_unit",
                     "od_reading",
                 ]
@@ -357,16 +374,39 @@ if button_pressed:
     ).median()
     st.session_state["df_rolling"] = df_rolling
 
+    if use_elapsed_time:
+        st.session_state["USE_ELAPSED_TIME_FOR_PLOTS"] = True
+
+    df_time_map = (
+        df_raw_od_data[["timestamp_rounded", "elapsed_time"]]
+        .drop_duplicates()
+        .set_index("timestamp_rounded")
+    )
+    df_time_map["elapsed_time_in_hours"] = df_time_map["elapsed_time"] / 3600.0
+    st.dataframe(df_time_map, width="content")
+    st.session_state["df_time_map"] = df_time_map
+
 
 with container_raw_data:
     st.dataframe(df_raw_od_data, width="content")
 
 if df_wide_raw_od_data is not None and masked is not None:
     # Download options
+
     if not use_same_yaxis_scale:
         st.warning("Using different y-axis scale for each reactor.")
+    if use_elapsed_time:
+        df_wide_raw_od_data = reindex_w_relative_time(
+            df=df_wide_raw_od_data,
+        )
+        masked = reindex_w_relative_time(
+            df=masked,
+        )
     fig = plot_growth_data_w_mask(
-        df_wide_raw_od_data, masked, sharey=use_same_yaxis_scale
+        df_wide_raw_od_data,
+        masked,
+        sharey=use_same_yaxis_scale,
+        is_data_index=not use_elapsed_time,
     )
     st.write(fig)
 
@@ -398,6 +438,13 @@ if st.session_state.get("df_wide_raw_od_data_filtered") is not None:
 if df_rolling is not None:
     st.header(f"Rolling median in window of {rolling_window}s using filtered OD data")
     st.write(df_rolling)
+
+    if use_elapsed_time:
+        # Map the index (timestamp_rounded) to elapsed_time_in_hours
+        df_rolling = reindex_w_relative_time(
+            df=df_rolling,
+        )
+
     ax = df_rolling.plot.line(style=".", ms=2)
     st.write(ax.get_figure())
     download_data_button_in_sidebar(
