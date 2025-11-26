@@ -46,6 +46,9 @@ no_data_uploaded = st.session_state.get("df_rolling") is None
 df_rolling = st.session_state.get("df_rolling")
 df_meta = st.session_state.get("df_meta")
 round_time = st.session_state.get("round_time", 60)
+
+DEFAULT_XLABEL_TPS = st.session_state.get("DEFAULT_XLABEL_TPS", "Timepoints (rounded)")
+DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (hours)")
 ########################################################################################
 # UI
 
@@ -265,7 +268,7 @@ if remove_downward_trending:
 # views for plotting to allow for elapsed time option
 df_rolling_view = df_rolling
 peaks_view = peaks.copy()  # ! pointer only works if passed to a function
-xlabel = "timepoints (rounded)"
+xlabel = DEFAULT_XLABEL_TPS
 if use_elapsed_time:
     # reindex all data to elapsed time for plotting
     xlabel = DEFAULT_XLABEL_REL
@@ -361,7 +364,7 @@ if use_elapsed_time:
     # reindex all data to elapsed time for plotting
     df_first_derivative_view = reindex_w_relative_time(df_first_derivative)
 
-fig, axes = plot_derivatives(df_first_derivative_view)
+fig, axes = plot_derivatives(df_first_derivative_view, xlabel=xlabel)
 st.pyplot(fig)
 
 with st.sidebar:

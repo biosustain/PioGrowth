@@ -17,7 +17,8 @@ df_time_map = st.session_state.get("df_time_map")
 no_data_uploaded = st.session_state.get("df_rolling") is None
 df_rolling = st.session_state.get("df_rolling")
 
-
+DEFAULT_XLABEL_TPS = st.session_state.get("DEFAULT_XLABEL_TPS", "Timepoints (rounded)")
+DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (hours)")
 ########################################################################################
 # page
 
@@ -124,12 +125,12 @@ if form_submit and not no_data_uploaded:
     derivatives_view = derivatives
     df_rolling_view = df_rolling
     maxima_idx_view = maxima_idx
-    xlabel = "timepoints (rounded)"
+    xlabel = DEFAULT_XLABEL_TPS
     if use_elapsed_time:
         # reindex all data to elapsed time for plotting
         splines_view = reindex_w_relative_time(splines)
         derivatives_view = reindex_w_relative_time(derivatives)
-        xlabel = "elapsed time (in hours)"
+        xlabel = DEFAULT_XLABEL_REL
         df_rolling_view = reindex_w_relative_time(df_rolling)
         maxima_idx_view = derivatives_view.idxmax()
     fig, axes = plot_fitted_data(
