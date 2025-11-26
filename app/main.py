@@ -13,6 +13,9 @@ if st.session_state.get("custom_id") is None:
 if st.session_state.get("df_raw_od_data") is None:
     st.session_state["df_raw_od_data"] = None
 
+st.session_state["DEFAULT_XLABEL_TPS"] = "Timepoints (rounded)"
+st.session_state["DEFAULT_XLABEL_REL"] = "Elapsed time (hours)"
+
 
 # function creating the about page from a markdown file
 def render_about():
