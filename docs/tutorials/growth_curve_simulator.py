@@ -15,6 +15,7 @@ from typing import Iterable
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.linear_model import LinearRegression
 
 from piogrowth.durations import find_max_range
 from piogrowth.fit import fit_spline_and_derivatives_one_batch, get_smoothing_range
@@ -26,13 +27,18 @@ def generate_growth_curve(
     growth_rate: float = 0.5,
     max_population: float = 1.0,
     initial_population: float = 0.01,
+    shift: float = 0.0,
     noise_level: float = 0.02,
     random_seed: int = None,
-    non_negative: bool = False,
+    non_negative: bool = True,
     log_transform: bool = False,
+    epsilon: float = 0.0001,
 ):
     """
-    Generate biological growth curve with lag phase.
+    Generate biological growth curve with lag phase using modified logistic equation.
+
+    Standard logistic: N(t) = K / (1 + ((K-N₀)/N₀) * exp(-r*t))
+    With lag phase: Growth starts at effective time t_eff = t - lag_duration
 
     Parameters:
     -----------
@@ -41,19 +47,23 @@ def generate_growth_curve(
     lag_duration : float
         Duration of the lag phase (same units as time_points)
     growth_rate : float
-        Maximum specific growth rate (1/time)
+        Intrinsic/maximum specific growth rate r (1/time)
     max_population : float
-        Carrying capacity / maximum population size
+        Carrying capacity K / maximum population size
     initial_population : float
-        Initial population size
+        Initial population size N₀
+    shift : float
+        Vertical shift (e.g., for background OD)
     noise_level : float
-        Standard deviation of Gaussian noise (relative to signal)
+        Standard deviation of Gaussian noise
     random_seed : int, optional
         Random seed for reproducibility
     non_negative : bool
         Whether to enforce non-negative population values
     log_transform : bool
-        Whether to apply log10 transform to the output
+        Whether to apply natural log transform to the output
+    epsilon : float
+        Small offset added before log to avoid log(0)
 
     Returns:
     --------
@@ -67,21 +77,27 @@ def generate_growth_curve(
 
     time_points = np.array(time_points)
 
-    # Modified logistic growth with lag phase
-    # Shift time by lag duration
+    # Logistic growth equation with lag phase
+    # During lag: keep population near initial with minimal growth
+    # After lag: apply standard logistic starting from t_eff = 0
     adjusted_time = time_points - lag_duration
 
-    # Logistic growth equation
-    population_clean = max_population / (
-        1
-        + ((max_population - initial_population) / initial_population)
-        * np.exp(-growth_rate * adjusted_time)
-    )
-    # During lag phase, keep population close to initial
+    # Standard logistic growth formula:
+    # N(t) = K / (1 + A * exp(-r*t))
+    # where A = (K - N₀) / N₀
+    A = (max_population - initial_population) / initial_population
+    population_clean = max_population / (1 + A * np.exp(-growth_rate * adjusted_time))
+
+    # During lag phase, override with slow linear growth
+    # (prevents negative adjusted_time from causing exponential explosion backwards)
     lag_mask = time_points < lag_duration
     population_clean[lag_mask] = initial_population * (
-        1 + 0.1 * (time_points[lag_mask] / lag_duration)
+        1 + 0.4 * (time_points[lag_mask] / lag_duration)
     )
+
+    # Add vertical shift (e.g., background OD reading)
+    if shift > 0.0:
+        population_clean = population_clean + shift
 
     # Add Gaussian noise
     noise = np.random.normal(
@@ -90,13 +106,15 @@ def generate_growth_curve(
         size=len(time_points),
     )
     population = population_clean + noise
+
     # Ensure non-negative
     if non_negative:
-        population = np.maximum(population, 0.0001)
+        population = np.maximum(population, epsilon)
 
+    # Optional log transform (for exponential phase detection)
     if log_transform:
-        population = np.log10(population)
-        population_clean = np.log10(population_clean)
+        population = np.log(population + epsilon)
+        population_clean = np.log(population_clean + epsilon)
 
     return population, population_clean
 
@@ -163,12 +181,56 @@ growth_rate = 0.6
 
 pop_noisy, pop_clean = generate_growth_curve(
     time_points=time,
-    lag_duration=3.0,
-    growth_rate=0.6,
-    max_population=1.5,
-    initial_population=0.05,
+    lag_duration=lag_duration,
+    growth_rate=growth_rate,
+    max_population=max_population,
+    initial_population=initial_population,
+    shift=1,
     noise_level=0.03,
     random_seed=42,
+)
+fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
+
+# %%
+pop_noisy, pop_clean = generate_growth_curve(
+    time_points=time,
+    lag_duration=lag_duration,
+    growth_rate=growth_rate,
+    max_population=max_population,
+    initial_population=initial_population,
+    shift=1,
+    noise_level=0.03,
+    random_seed=42,
+    log_transform=True,
+)
+fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
+
+
+# %%
+# %%
+pop_noisy, pop_clean = generate_growth_curve(
+    time_points=time,
+    lag_duration=lag_duration,
+    growth_rate=growth_rate,
+    max_population=max_population,
+    initial_population=initial_population,
+    noise_level=0.03,
+    random_seed=42,
+    log_transform=True,
+)
+fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
+
+# %%
+pop_noisy, pop_clean = generate_growth_curve(
+    time_points=time,
+    lag_duration=lag_duration,
+    growth_rate=growth_rate,
+    max_population=max_population,
+    initial_population=initial_population,
+    noise_level=0.03,
+    shift=1,
+    random_seed=42,
+    log_transform=True,
 )
 fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
 
@@ -228,7 +290,7 @@ spline_smoothing_value
 # - could be used to estimat the growth rate during maximum growth phase
 
 # %%
-high_percentage_treshold = 90
+high_percentage_treshold = 95
 splines, derivatives = fit_spline_and_derivatives_one_batch(
     df_rolling,
     smoothing_factor=spline_smoothing_value.s,
@@ -240,8 +302,8 @@ max_time_range = in_high_growth.apply(find_max_range, axis=0).T.convert_dtypes()
 derivatives.describe()
 
 # %%
-t_max_in_h = (derivatives.idxmax() - derivatives.index.min()).dt.seconds / 3_600
-t_max_in_h
+t_to_max_in_h = (derivatives.idxmax() - derivatives.index.min()).dt.seconds / 3_600
+t_to_max_in_h
 
 # %% [markdown]
 # recalculate the OD value based on the estimation
@@ -251,7 +313,7 @@ max_population / (
     1
     # scaling term is interesting
     + ((max_population - initial_population) / initial_population)
-    * np.exp(-growth_rate * (t_max_in_h - lag_duration))
+    * np.exp(-growth_rate * (t_to_max_in_h - lag_duration))
 )
 
 # %% [markdown]
@@ -262,7 +324,7 @@ max_population / (
 # use `od_max` from `df_rolling`
 
 # %%
-t_max_corrected = t_max_in_h - lag_duration
+t_max_corrected = t_to_max_in_h - lag_duration
 od_max = df_rolling.loc[derivatives.idxmax()].squeeze()
 factor = (max_population - initial_population) / initial_population
 max_population / (
@@ -287,8 +349,78 @@ np.exp2((np.log2(od_max) - np.log2(initial_population)) / t_max_corrected) - 1
 calculate_growth_rate(
     od_max=od_max,
     initial_population=initial_population,
-    t_max=t_max_in_h,
+    t_max=t_to_max_in_h,
     lag_duration=3,
+)
+
+# %% [markdown]
+# Find time range of maximum derivative and plot the region
+
+
+# %%
+def add_region_high_growth(ax, time_range, use_elapsed_time=False):
+    """Add shaded region to indicate high growth phase."""
+    start, end = time_range["start"], time_range["end"]
+    if pd.isna(start) or pd.isna(end):
+        return
+    if use_elapsed_time:
+        start = (start - df_rolling.index[0]).total_seconds() / 3600
+        end = (end - df_rolling.index[0]).total_seconds() / 3600
+    ax.axvspan(
+        start,
+        end,
+        color="gray",
+        alpha=0.3,
+        label="High growth phase",
+    )
+    return ax
+
+
+in_high_growth = derivatives.ge(cutoffs, axis=1)
+max_range = find_max_range(in_high_growth["Reactor"])
+fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
+add_region_high_growth(ax, max_range, use_elapsed_time=True)
+
+# %% [markdown]
+# ## Without lag phase
+# Now calculate exponential growth in the maximum growth area:
+
+# %%
+view = df_rolling.loc[max_range.start : max_range.end]
+np.log(view).plot()
+
+# %%
+od_log = np.log(view["Reactor"])
+X = (od_log.index - od_log.index[0]).total_seconds().values.reshape(
+    -1, 1
+) / 3600  # hours
+y = od_log.values.reshape(-1, 1)
+
+reg = LinearRegression().fit(X, y)
+slope = reg.coef_[0][0]
+intercept = reg.intercept_[0]
+
+print(f"Growth rate (slope): {slope:.4f} per hour")
+print(f"Intercept: {intercept:.4f}")
+
+# Plot regression line
+fig, ax = plt.subplots(figsize=(7, 4))
+ax.plot(X, y, "o", label="Log(OD)")
+ax.plot(X, reg.predict(X), "r-", label="Linear fit")
+ax.set_xlabel("Time (hours)")
+ax.set_ylabel("Log(OD)")
+ax.legend()
+
+
+# %%
+t_in_h_exponential_growth = (max_range.end - max_range.start).total_seconds() / 3600
+od_max = df_rolling.loc[max_range.end].squeeze()
+initial_population = df_rolling.loc[max_range.start].squeeze()
+calculate_growth_rate(
+    od_max=od_max,
+    initial_population=initial_population,
+    t_max=t_in_h_exponential_growth,
+    lag_duration=0,
 )
 
 # %% [markdown]
