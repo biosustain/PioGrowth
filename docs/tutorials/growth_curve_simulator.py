@@ -10,8 +10,7 @@
 # ## Setup
 
 # %%
-from collections import namedtuple
-from typing import Iterable
+from typing import Iterable, NamedTuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,7 +21,18 @@ from sklearn.linear_model import LinearRegression
 from piogrowth.durations import find_max_range
 from piogrowth.fit import fit_spline_and_derivatives_one_batch, get_smoothing_range
 
-GrowthParams = namedtuple("GrowthParams", ["a", "r", "t0", "shift_y"])
+
+class GrowthParams(NamedTuple):
+    a: float
+    r: float
+    t0: float
+    shift_y: float
+
+    def __repr__(self):
+        return (
+            f"GrowthParams(a={self.a:.3f}, r={self.r:.3f},"
+            f" t0={self.t0:.3f}, shift_y={self.shift_y:.3f})"
+        )
 
 
 def generate_growth_curve(
