@@ -26,6 +26,7 @@ dependencies = [
     "seaborn",
     "streamlit",
     "scikit-learn",
+    "scipy",
 ]
 # use requirements.txt instead of pyproject.toml for dependencies
 # https://stackoverflow.com/a/73600610/9684872

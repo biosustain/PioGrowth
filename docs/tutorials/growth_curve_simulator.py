@@ -10,15 +10,19 @@
 # ## Setup
 
 # %%
+from collections import namedtuple
 from typing import Iterable
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from scipy.optimize import curve_fit
 from sklearn.linear_model import LinearRegression
 
 from piogrowth.durations import find_max_range
 from piogrowth.fit import fit_spline_and_derivatives_one_batch, get_smoothing_range
+
+GrowthParams = namedtuple("GrowthParams", ["a", "r", "t0", "shift_y"])
 
 
 def generate_growth_curve(
@@ -85,15 +89,16 @@ def generate_growth_curve(
     # Standard logistic growth formula:
     # N(t) = K / (1 + A * exp(-r*t))
     # where A = (K - N₀) / N₀
-    A = (max_population - initial_population) / initial_population
-    population_clean = max_population / (1 + A * np.exp(-growth_rate * adjusted_time))
+    # A = (max_population - initial_population) / initial_population
+    # population_clean = max_population / (1 + A * np.exp(-growth_rate * adjusted_time))
+    population_clean = max_population / (1 + np.exp(-growth_rate * adjusted_time))
 
-    # During lag phase, override with slow linear growth
-    # (prevents negative adjusted_time from causing exponential explosion backwards)
-    lag_mask = time_points < lag_duration
-    population_clean[lag_mask] = initial_population * (
-        1 + 0.4 * (time_points[lag_mask] / lag_duration)
-    )
+    # # During lag phase, override with slow linear growth
+    # # (prevents negative adjusted_time from causing exponential explosion backwards)
+    # lag_mask = time_points < lag_duration
+    # population_clean[lag_mask] = initial_population * (
+    #     1 + 0.4 * (time_points[lag_mask] / lag_duration)
+    # )
 
     # Add vertical shift (e.g., background OD reading)
     if shift > 0.0:
@@ -165,6 +170,54 @@ def plot_simulated_growth_curve(
     return fig, ax
 
 
+from scipy.signal import savgol_filter
+
+
+def smooth(y: np.ndarray[float], window: int = 21, poly: int = 1, passes: int = 1):
+    """Smooth a series with Savitzky-Golay filtering (odd window, multi-pass)."""
+    n = y.size
+    if n < 7:
+        return y
+    w = int(window) | 1  # odd
+    w = min(w, n if n % 2 else n - 1)
+    p = min(int(poly), w - 1)
+    for _ in range(int(passes)):
+        y = savgol_filter(y, w, p, mode="interp")
+    return y
+
+
+def logistic_model(t, a, r, t0, shift=0.0):
+    """Idealized growth curve model with lag phase."""
+    u = np.exp(-r * (t - t0))
+    return a / (1 + u) + shift
+
+
+def logistic_model_d1(t, a, r, t0):
+    """Idealized first-derivative model for growth curves."""
+    u = np.exp(-r * (t - t0))
+    return a * r * (u / (1 + u) ** 2)
+
+
+def logistic_model_d2(t, a, r, t0):
+    """Idealized second-derivative model for growth curves."""
+    u = np.exp(-r * (t - t0))
+    return a * r * (u * (u - 1) / (1 + u) ** 3)
+
+
+def gompertz_model(t, a, r, lag):
+    """Gompertz growth model: y(t) = a * exp(-exp(-r * (t - lag)))"""
+    return a * np.exp(-np.exp(-r * (t - lag)))
+
+
+def richards_model(t, a, r, lag, nu):
+    """Richards growth model (generalized logistic with shape parameter nu)
+
+    Generalized logistic function: https://en.wikipedia.org/wiki/Generalised_logistic_function
+    """
+    power = 1 / nu
+    return a / ((1 + nu * np.exp(-r * (t - lag))) ** power)
+
+
 # %% [markdown]
 # ## S-Shaped growth curve
 # Generate time points:
@@ -172,70 +225,108 @@ def plot_simulated_growth_curve(
 # - 17,280 would be every 5seconds for a day
 
 # %%
-time = np.linspace(0, 24, 2880)
+time_in_h = np.linspace(0, 24, 2880)
 # Generate growth curve
 max_population = 1.5
-lag_duration = 3
+lag_duration = 10
 initial_population = 0.05
 growth_rate = 0.6
+shift_y = 0.2
+noise_level = 0.03
 
 pop_noisy, pop_clean = generate_growth_curve(
-    time_points=time,
+    time_points=time_in_h,
     lag_duration=lag_duration,
     growth_rate=growth_rate,
     max_population=max_population,
     initial_population=initial_population,
-    shift=1,
-    noise_level=0.03,
+    shift=shift_y,
+    noise_level=noise_level,
     random_seed=42,
 )
-fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
+fig, ax = plot_simulated_growth_curve(time_in_h, pop_clean, pop_noisy)
+
+
+# %% [markdown]
+# Plot the model with the parameters specified above
 
 # %%
-pop_noisy, pop_clean = generate_growth_curve(
-    time_points=time,
-    lag_duration=lag_duration,
-    growth_rate=growth_rate,
-    max_population=max_population,
-    initial_population=initial_population,
-    shift=1,
-    noise_level=0.03,
-    random_seed=42,
-    log_transform=True,
+model_curve = logistic_model(
+    t=time_in_h, a=max_population, r=growth_rate, t0=lag_duration, shift=shift_y
 )
-fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
-
-
-# %%
-# %%
-pop_noisy, pop_clean = generate_growth_curve(
-    time_points=time,
-    lag_duration=lag_duration,
-    growth_rate=growth_rate,
-    max_population=max_population,
-    initial_population=initial_population,
-    noise_level=0.03,
-    random_seed=42,
-    log_transform=True,
+# model_curve = richards_model(
+#     t=time_in_h, a=max_population, r=growth_rate, lag=lag_duration, nu=2.0
+# )
+plot_simulated_growth_curve(
+    time_in_h,
+    model_curve,
+    pop_noisy=pop_noisy,
 )
-fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
+
+# %% [markdown]
+# ## Curve fitting on noisy data
+# Fitted parameters with noisy data
 
 # %%
-pop_noisy, pop_clean = generate_growth_curve(
-    time_points=time,
-    lag_duration=lag_duration,
-    growth_rate=growth_rate,
-    max_population=max_population,
-    initial_population=initial_population,
-    noise_level=0.03,
-    shift=1,
-    random_seed=42,
-    log_transform=True,
+params_fitted, pcov = curve_fit(
+    logistic_model, time_in_h, pop_noisy, p0=[1.0, 0.5, 3.0, 0.0]
 )
-fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
+GrowthParams(*params_fitted)
+
+# %% [markdown]
+# Fitted parameters with smoothed data (removing some noise)
+# - difference is here minimal with low and homoscedastic noise
 
 # %%
-pop_noisy
+params_fitted, pcov = curve_fit(
+    logistic_model, time_in_h, smooth(pop_noisy, window=31), p0=[1.0, 0.5, 3.0, 0.0]
+)
+GrowthParams(*params_fitted)
+
+# %% [markdown]
+# ## Compare different growth models
+# Fitting the noisy data from logistic model
+
+# %% [markdown]
+# Fitting the noisy data with all models
+
+# %%
+# to move to pkg
+
+model_functions = {
+    "Logistic": logistic_model,
+    "Gompertz": gompertz_model,
+    "Richards": richards_model,
+}
+
+inital_parameters = {
+    "Logistic": [1.0, 0.5, 3.0, 0.0],
+    "Gompertz": [1.0, 0.5, 3.0],
+    "Richards": [1.0, 0.5, 3.0, 2.0],
+}
+
+fig, ax = plt.subplots(figsize=(10, 6))
+ax.plot(time_in_h, model_curve, alpha=1, label="model (w./o. noise)")
+
+for model_name, model_func in model_functions.items():
+    p0 = inital_parameters[model_name]
+    params_fitted, pcov = curve_fit(model_func, time_in_h, pop_noisy, p0=p0)
+    model_fit = model_func(time_in_h, *params_fitted)
+    ax.plot(time_in_h, model_fit, label=f"Fitted: {model_name}", alpha=0.3)
+    print(f"{model_name} fitted parameters: {params_fitted}")
+_ = ax.legend()
+
+# %% [markdown]
+# A huge condition number would indicate a problem with parameter identifiability
+# - huge >>> 1e12
+
+# %%
+np.linalg.cond(pcov)
+
+# %% [markdown]
+# ## Prepare data for PioReactor-like analysis
+# - create datetime index
+# - apply rolling median smoothing (could be Savitzky-Golay filtering)
 
 # %% [markdown]
 # Convert hours (range of 24h) to timedelta and move to start data
@@ -243,7 +334,7 @@ pop_noisy
 
 # %%
 start_datetime = pd.Timestamp("2025-11-21 08:00")
-time_series = pd.Series(pd.to_timedelta(time, unit="h")) + start_datetime
+time_series = pd.Series(pd.to_timedelta(time_in_h, unit="h")) + start_datetime
 time_series = pd.Series(time_series, dtype="datetime64[s]")
 time_series
 
@@ -274,8 +365,20 @@ df_rolling = df.rolling(
 ).median()
 df_rolling
 
+# %% [markdown]
+# Plot median smoothed data against Savitzky-Golay smoothed data
+# - what happens in the case of outliers? (to be tested)
+# - are results comparable?
+#
+# For now we will continue with the rolling median smoothed data
+
 # %%
-df_rolling.plot(figsize=(7.4, 4))
+ax = df_rolling.plot(figsize=(7.4, 4), legend=False)
+_ = ax.legend(["Smoothed data: rolling median"])
+pd.Series(smooth(df["Reactor"], window=31, passes=1), index=df.index).plot(ax=ax)
+_ = ax.legend(["Smoothed data: rolling median", "Smoothed data: Savitzky-Golay"])
+
+# %%
 
 # %% [markdown]
 # Fit spline to the smoothed data and calculate derivatives
@@ -288,6 +391,91 @@ spline_smoothing_value
 # %% [markdown]
 # Identify time points where growth rate is in the top 90%
 # - could be used to estimat the growth rate during maximum growth phase
+
+
+# %%
+from pandas.api.types import is_datetime64_any_dtype
+from scipy.interpolate import make_splrep, splev
+
+
+def fit_spline_and_derivatives(
+    s: pd.Series,
+    smoothing_factor: float = 1000.0,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Fit B-splines to each column in the DataFrame and compute specified derivatives.
+    Values cannot be missing as NaNs, i.e. on rolling median of data.
+
+    Parameters
+    ----------
+    s: pd.Series
+        Input Series with time series data
+    smoothing_factor: float
+        Smoothing factor for the spline fitting.
+    Returns:
+        dict[str, pd.DataFrame]: Dictionary containing the fitted spline
+                                 and its derivatives.
+    """
+    # drop NaN values
+    s = s.dropna()
+
+    if len(s) < 4:
+        raise ValueError(
+            "Not enough data points to fit a spline. Need at least 4 non-NaN values."
+        )
+    if not is_datetime64_any_dtype(s.index.dtype):
+        raise TypeError("Index of the input Series must be datetime type.")
+    x = (s.index - s.index[0]).total_seconds().to_numpy() / 3_600  # convert to hours
+
+    bspl = make_splrep(
+        x,
+        s,
+        s=smoothing_factor,
+        k=3,
+    )
+    s_fitted = pd.Series(
+        splev(x, bspl),
+        index=s.index,
+    )
+
+    # for order in derivative_ord_ers:
+    der = bspl.derivative(nu=1)
+    s_first_derivative = pd.Series(
+        der(x),
+        index=s.index,
+    )
+
+    der2 = bspl.derivative(nu=2)
+    s_second_derivative = pd.Series(
+        der2(x),
+        index=s.index,
+    )
+
+    return s_fitted, s_first_derivative, s_second_derivative
+
+
+def plot_fitted_data(
+    splines: pd.Series,
+    der1: pd.Series,
+    der2: pd.Series,
+):
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(10, 12))
+    splines.plot(ax=ax, title="Fitted Spline", color="blue")
+    ax2 = ax.twinx()
+    der1.plot(ax=ax2, color="green", label="First Derivative")
+    der2.plot(ax=ax2, color="orange", label="Second Derivative")
+    # ax2.set_ylabel("Derivatives")
+    # der1.plot(ax=ax2, title="First Derivative", color="green")
+    # der2.plot(ax=ax2, title="Second Derivative", color="orange")
+    ax.legend(["Fitted Spline"])
+    ax2.legend(["First Derivative", "Second Derivative"])
+    fig.tight_layout()
+    return fig, ax
+
+
+splines, der1, der2 = fit_spline_and_derivatives(
+    df_rolling.squeeze(), smoothing_factor=5.0
+)
+fig, ax = plot_fitted_data(splines, der1, der2)
 
 # %%
 high_percentage_treshold = 95
@@ -378,7 +566,7 @@ def add_region_high_growth(ax, time_range, use_elapsed_time=False):
 
 in_high_growth = derivatives.ge(cutoffs, axis=1)
 max_range = find_max_range(in_high_growth["Reactor"])
-fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
+fig, ax = plot_simulated_growth_curve(time_in_h, pop_clean, pop_noisy)
 add_region_high_growth(ax, max_range, use_elapsed_time=True)
 
 # %% [markdown]
