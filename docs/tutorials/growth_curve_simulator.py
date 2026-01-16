@@ -779,7 +779,7 @@ def add_region_high_growth(ax, time_range, use_elapsed_time=False):
 
 in_high_growth = derivatives.ge(cutoffs, axis=1)
 max_range = find_max_range(in_high_growth["Reactor"])
-fig, ax = plot_simulated_growth_curve(time_in_h, pop_clean, pop_noisy)
+fig, ax = plot_simulated_growth_curve(time_in_h, model_curve, pop_noisy)
 _ = add_region_high_growth(ax, max_range, use_elapsed_time=True)
 
 # %% [markdown]
@@ -823,3 +823,5 @@ calculate_growth_rate(
     t_max=t_in_h_exponential_growth,
     lag_duration=0,
 )
+
+# %%
