@@ -4,7 +4,19 @@
 # biological growth gurves with lag phase.
 #
 # Without lag-phase and ranging from zero to one, growth curves can be formulated as:
-# - ...
+#
+# Fitting common growth models using a squared-error loss function
+# (using `scipy`)
+# - `t_0` is the shift of the center of the modeled curve (should correspond to
+#    maximum growth)
+# - `r` is the rate in the exponential, which gives the rate (not sure if this can
+#    always be used to model exponential growth)
+# - `a` is the saturation maximum in the growth curve
+#
+# Finding the maximum growth using splines
+# - probably less optimal, but maximum growth range seems to work.
+# - slope of sliding window on log-transformed data should give the growth rate
+
 
 # %% [markdown]
 # ## Setup
@@ -229,7 +241,7 @@ def richards_model(t, a, r, lag, nu):
 
 
 # %% [markdown]
-# ## S-Shaped growth curve
+# ## S-Shaped growth curve (Logistic)
 # Generate time points:
 # - 2,880 would we every 30seconds for a day
 # - 17,280 would be every 5seconds for a day
@@ -244,7 +256,7 @@ growth_rate = 0.6
 shift_y = 0.2
 noise_level = 0.03
 
-pop_noisy, pop_clean = generate_growth_curve(
+pop_noisy, model_curve = generate_growth_curve(
     time_points=time_in_h,
     lag_duration=lag_duration,
     growth_rate=growth_rate,
@@ -254,24 +266,13 @@ pop_noisy, pop_clean = generate_growth_curve(
     noise_level=noise_level,
     random_seed=42,
 )
-fig, ax = plot_simulated_growth_curve(time_in_h, pop_clean, pop_noisy)
-
 
 # %% [markdown]
 # Plot the model with the parameters specified above
 
 # %%
-model_curve = logistic_model(
-    t=time_in_h, a=max_population, r=growth_rate, t0=lag_duration, shift=shift_y
-)
-# model_curve = richards_model(
-#     t=time_in_h, a=max_population, r=growth_rate, lag=lag_duration, nu=2.0
-# )
-plot_simulated_growth_curve(
-    time_in_h,
-    model_curve,
-    pop_noisy=pop_noisy,
-)
+fig, ax = plot_simulated_growth_curve(time_in_h, model_curve, pop_noisy)
+
 
 # %% [markdown]
 # ## Curve fitting on noisy data
@@ -323,7 +324,8 @@ for model_name, model_func in model_functions.items():
     params_fitted, pcov = curve_fit(model_func, time_in_h, pop_noisy, p0=p0)
     model_fit = model_func(time_in_h, *params_fitted)
     ax.plot(time_in_h, model_fit, label=f"Fitted: {model_name}", alpha=0.3)
-    print(f"{model_name} fitted parameters: {params_fitted}")
+    msg_params_fitted = ", ".join(f"{_p:.3f}" for _p in params_fitted)
+    print(f"{model_name} fitted parameters: {msg_params_fitted}")
 _ = ax.legend()
 
 # %% [markdown]
@@ -388,7 +390,208 @@ _ = ax.legend(["Smoothed data: rolling median"])
 pd.Series(smooth(df["Reactor"], window=31, passes=1), index=df.index).plot(ax=ax)
 _ = ax.legend(["Smoothed data: rolling median", "Smoothed data: Savitzky-Golay"])
 
+# %% [markdown]
+# ## Fit a linear model on the
+
 # %%
+import numpy as np
+
+# Fit linear model to original series
+from sklearn.linear_model import LinearRegression
+
+series_window = df_rolling.squeeze().loc["2025-11-21 15:00":"2025-11-21 22:00"]
+
+
+def timeindex_to_hours(index: pd.DatetimeIndex):
+    """
+    Convert a pandas DatetimeIndex to elapsed hours since the first timestamp.
+
+    Parameters
+    ----------
+    index : pd.DatetimeIndex
+        The DatetimeIndex to convert.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array of elapsed hours (float) since the first timestamp in the index,
+        reshaped as a column vector.
+    """
+    x = (index - index[0]).total_seconds().to_numpy() / 3600
+    return
+
+
+def fit_linear_growth(s: pd.Series):
+    """
+    Fit a linear regression model to a time series window.
+
+    Parameters
+    ----------
+    series_window : pd.Series
+        Time-indexed series of population measurements.
+
+    Returns
+    -------
+    linreg : LinearRegression
+        Fitted linear regression model.
+    """
+    X = (s.index - s.index[0]).total_seconds().to_numpy().reshape(-1, 1) / 3600  # hours
+    y = s.values.reshape(-1, 1)
+    linreg = LinearRegression().fit(X, y)
+    return linreg
+
+
+def get_slope(s: pd.Series):
+    linreg_fitted = fit_linear_growth(s)
+    return linreg_fitted.coef_[0][0]
+
+
+# %% [markdown]
+# ### (Non-) transformed data
+#
+
+
+# %%
+def get_tangent(s, max_idx, max_slope, window_hours=1):
+    """
+    Compute the tangent line around the maximum slope point in log2-transformed data.
+
+    Parameters
+    ----------
+    s : pd.Series
+        Data with datetime index.
+    max_idx : pd.Timestamp
+        Index of the maximum slope point.
+    s_log2 : pd.DataFrame or pd.Series
+        Log2-transformed smoothed data.
+    max_slope : float
+        Maximum slope value.
+    window_hours : float, optional
+        Window size in hours around max_idx to show the tangent (default: 1).
+
+    Returns
+    -------
+    tangent : np.ndarray
+        Array with tangent values (NaN outside the window).
+    """
+    x = (s.index - s.index[0]).total_seconds() / 3600  # hours
+    x0 = (max_idx - s.index[0]).total_seconds() / 3600
+    y0 = (
+        s.loc[max_idx].values[0]
+        if hasattr(s.loc[max_idx], "values")
+        else s.loc[max_idx]
+    )
+
+    # Mask for ±window_hours around max_idx
+    mask = (x >= x0 - window_hours) & (x <= x0 + window_hours)
+    tangent = np.full_like(x, np.nan, dtype=float)
+    tangent[mask] = max_slope * (x[mask] - x0) + y0
+    return tangent
+
+
+s_log2 = np.log2(df_rolling.squeeze())
+s_normal = df_rolling.squeeze()
+slopes_log2 = s_log2.rolling(
+    rolling_window + 100,
+    min_periods=min_periods,
+    center=True,
+).apply(get_slope)
+
+# Find max slope and its location
+max_idx = slopes_log2.idxmax()
+max_slope = slopes_log2.max()
+
+tangent = get_tangent(s_log2, max_idx=max_idx, max_slope=max_slope)
+
+# Plot original data and tangent at max (only in window)
+fig, ax = plt.subplots(figsize=(8, 5))
+s_normal.plot(ax=ax, label="Original data (rolling median)")
+s_log2.plot(ax=ax, label="Log2 transformed data")
+ax.plot(df_rolling.index, tangent, "--", label="Tangent at max slope (±1h) (log2)")
+ax.scatter([max_idx], [s_log2.loc[max_idx]], color="red", zorder=3)
+ax.legend()
+ax.set_title("Original data with tangent at maximum slope")
+plt.show()
+
+# %% [markdown]
+# maximum timepoint estimation with sliding window is not perfect. small errors can lead
+# to deviations.
+
+# %%
+print(f"shift in x of logistic funtion: {lag_duration}")
+max_idx - df_rolling.index[0]
+
+# %%
+center_time = df_rolling.index[0] + pd.Timedelta(hours=lag_duration)
+print(f"center of logistic curves should be: {center_time}")
+slopes_log2.squeeze().nlargest(5)
+
+# %%
+slopes_normal = s_normal.rolling(
+    rolling_window + 100,
+    min_periods=min_periods,
+    center=True,
+).apply(get_slope)
+slopes_normal.nlargest(5)
+
+# %%
+max_idx = slopes_normal.idxmax()
+max_slope = slopes_normal.max()
+
+tangent = get_tangent(s_normal, max_idx=max_idx, max_slope=max_slope)
+ax.plot(s_normal.index, tangent, "--", label="Tangent at max slope (±1h)")
+ax.scatter(
+    [max_idx],
+    [s_normal.loc[max_idx]],
+    color="red",
+    zorder=4,
+)
+ax.legend()
+fig
+
+
+# %%
+print(f"shift in x of logistic funtion: {lag_duration}")
+max_idx - df_rolling.index[0]
+
+# %%
+center_time = df_rolling.index[0] + pd.Timedelta(hours=lag_duration)
+print(f"center of logistic curves should be: {center_time}")
+slopes_normal.squeeze().nlargest(15)
+
+# %% [markdown]
+# maximum timepoint estimation with sliding window is not perfect. small errors can lead
+# to deviations.
+#
+# Looks like the growth rate in the model and from the slopes are hard to convenve.
+
+# %% [markdown]
+# if the data would have been log-transformed, exponential growth rate would be roughly
+# $$N(t) = N_0 \cdot e^{rt}$$
+# $$\log_2 N(t) = \log_2 \left( N_0 \cdot e^{rt} \right)$$
+# $$\log_2 N(t) = \log_2 N_0 + rt \cdot \log_2 e$$
+# $$\log_2 N(t) = \log_2 N_0 + \frac{r}{\ln 2}$$
+#
+# To recover r from the slope b, multiply by $ln(2)$.
+#
+# which does not work for non-transformed data
+
+# %%
+print(f"Growth rate in model:  {growth_rate:.3f}")
+print(f"Non-transformed slop:  {slopes_normal.max():.3f}")
+print(f"Non-transformed est. r:  {slopes_normal.max() * np.log(2):.3f}")
+print(f"Log2-transformed slope: {slopes_log2.max():.3f}")
+print(f"Log2-transformed est. r: {slopes_log2.max() * np.log(2):.3f}")
+
+# %%
+print("Median slope around center point (plus-minus 10mins)")
+_v = slopes_normal.squeeze().loc["2025-11-21 17:50":"2025-11-21 18:10"].median()
+print(f"non-transformed slope at center: {_v:.3f}")
+_v = slopes_log2.squeeze().loc["2025-11-21 17:50":"2025-11-21 18:10"].median()
+print(f"log-transformed slope at center: {_v:.3f}")
+
+# %% [markdown]
+# ## Use spline to find the maxium
 
 # %% [markdown]
 # Fit spline to the smoothed data and calculate derivatives
@@ -577,7 +780,7 @@ def add_region_high_growth(ax, time_range, use_elapsed_time=False):
 in_high_growth = derivatives.ge(cutoffs, axis=1)
 max_range = find_max_range(in_high_growth["Reactor"])
 fig, ax = plot_simulated_growth_curve(time_in_h, pop_clean, pop_noisy)
-add_region_high_growth(ax, max_range, use_elapsed_time=True)
+_ = add_region_high_growth(ax, max_range, use_elapsed_time=True)
 
 # %% [markdown]
 # ## Without lag phase
@@ -620,29 +823,3 @@ calculate_growth_rate(
     t_max=t_in_h_exponential_growth,
     lag_duration=0,
 )
-
-# %% [markdown]
-# ## Log-Transfrom data
-
-# %%
-# ToDo
-time = np.linspace(0, 24, 2880)
-# Generate growth curve
-pop_noisy, pop_clean = generate_growth_curve(
-    time_points=time,
-    lag_duration=3.0,
-    growth_rate=0.6,
-    max_population=1.5,
-    initial_population=0.05,
-    noise_level=0.03,
-    random_seed=42,
-    non_negative=True,
-    log_transform=True,
-)
-
-fig, ax = plot_simulated_growth_curve(time, pop_clean, pop_noisy)
-_ = ax.set_ylabel("Population log(OD or cells/mL)")
-
-# %% [markdown]
-# if the noise is evenly across all measurements, then small values
-# get disproportionately magnified in the log space.
