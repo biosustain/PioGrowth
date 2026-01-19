@@ -16,7 +16,8 @@
 # Finding the maximum growth using splines
 # - probably less optimal, but maximum growth range seems to work.
 # - slope of sliding window on log-transformed data should give the growth rate
-
+#
+# The $\mu_{max}$ growth is the minima of the second derivative.
 
 # %% [markdown]
 # ## Setup
@@ -52,7 +53,6 @@ def generate_growth_curve(
     lag_duration: float = 2.0,
     growth_rate: float = 0.5,
     max_population: float = 1.0,
-    initial_population: float = 0.01,
     shift: float = 0.0,
     noise_level: float = 0.02,
     random_seed: int = None,
@@ -76,8 +76,6 @@ def generate_growth_curve(
         Intrinsic/maximum specific growth rate r (1/time)
     max_population : float
         Carrying capacity K / maximum population size
-    initial_population : float
-        Initial population size N₀
     shift : float
         Vertical shift (e.g., for background OD)
     noise_level : float
@@ -107,20 +105,7 @@ def generate_growth_curve(
     # During lag: keep population near initial with minimal growth
     # After lag: apply standard logistic starting from t_eff = 0
     adjusted_time = time_points - lag_duration
-
-    # Standard logistic growth formula:
-    # N(t) = K / (1 + A * exp(-r*t))
-    # where A = (K - N₀) / N₀
-    # A = (max_population - initial_population) / initial_population
-    # population_clean = max_population / (1 + A * np.exp(-growth_rate * adjusted_time))
     population_clean = max_population / (1 + np.exp(-growth_rate * adjusted_time))
-
-    # # During lag phase, override with slow linear growth
-    # # (prevents negative adjusted_time from causing exponential explosion backwards)
-    # lag_mask = time_points < lag_duration
-    # population_clean[lag_mask] = initial_population * (
-    #     1 + 0.4 * (time_points[lag_mask] / lag_duration)
-    # )
 
     # Add vertical shift (e.g., background OD reading)
     if shift > 0.0:
@@ -144,35 +129,6 @@ def generate_growth_curve(
         population_clean = np.log(population_clean + epsilon)
 
     return population, population_clean
-
-
-def calculate_growth_rate(
-    od_max: float,
-    initial_population: float,
-    t_max: float,
-    lag_duration: float,
-) -> float:
-    """Calculate growth rate from max OD, initial population, and corrected max time.
-    The estimate is based on the assumption of exponential growth after lag phase.
-
-    Parameters:
-    -----------
-    od_max : float
-        Maximum observed population (OD or cells/mL)
-    initial_population : float
-        Initial population size
-    t_max : float
-        Time to maximum growth rate
-
-    Returns:
-    --------
-    growth_rate : float
-        Estimated growth rate
-    """
-    t_max_corrected = t_max - lag_duration
-    return (
-        np.exp2((np.log2(od_max) - np.log2(initial_population)) / t_max_corrected) - 1
-    )
 
 
 def plot_simulated_growth_curve(
@@ -208,6 +164,11 @@ def smooth(y: np.ndarray[float], window: int = 21, poly: int = 1, passes: int = 
     return y
 
 
+# %% [markdown]
+# Model equations
+
+
+# %%
 def logistic_model(t, a, r, t0, shift=0.0):
     """Idealized growth curve model with lag phase."""
     u = np.exp(-r * (t - t0))
@@ -251,7 +212,6 @@ time_in_h = np.linspace(0, 24, 2880)
 # Generate growth curve
 max_population = 1.5
 lag_duration = 10
-initial_population = 0.05
 growth_rate = 0.6
 shift_y = 0.2
 noise_level = 0.03
@@ -261,7 +221,6 @@ pop_noisy, model_curve = generate_growth_curve(
     lag_duration=lag_duration,
     growth_rate=growth_rate,
     max_population=max_population,
-    initial_population=initial_population,
     shift=shift_y,
     noise_level=noise_level,
     random_seed=42,
@@ -336,6 +295,19 @@ _ = ax.legend()
 np.linalg.cond(pcov)
 
 # %% [markdown]
+# ### Derivatives and maxima
+# does not help to find $\mu_{max}$, but could be used with first derivative as formula
+
+# %%
+from scipy.differentiate import derivative
+
+der1 = derivative(logistic_model, time_in_h, args=(1.502, 0.598, 9.978, 0.199))
+der1.df
+
+# %%
+time_in_h[der1.df.argmax()]
+
+# %% [markdown]
 # ## Prepare data for PioReactor-like analysis
 # - create datetime index
 # - apply rolling median smoothing (could be Savitzky-Golay filtering)
@@ -391,7 +363,11 @@ pd.Series(smooth(df["Reactor"], window=31, passes=1), index=df.index).plot(ax=ax
 _ = ax.legend(["Smoothed data: rolling median", "Smoothed data: Savitzky-Golay"])
 
 # %% [markdown]
-# ## Fit a linear model on the
+# ## Fit a linear model on the data
+# - rolling window
+# - maximum overall growth: maximum of first derivative
+# - $mu_{max}$ growth is the maximum of the second derivative, or the maximum of the
+#   log transformed data slope (estimated with a sliding window)
 
 # %%
 import numpy as np
@@ -446,12 +422,6 @@ def get_slope(s: pd.Series):
     return linreg_fitted.coef_[0][0]
 
 
-# %% [markdown]
-# ### (Non-) transformed data
-#
-
-
-# %%
 def get_tangent(s, max_idx, max_slope, window_hours=1):
     """
     Compute the tangent line around the maximum slope point in log2-transformed data.
@@ -489,6 +459,12 @@ def get_tangent(s, max_idx, max_slope, window_hours=1):
     return tangent
 
 
+# %% [markdown]
+# ### (Non-) transformed data
+#
+
+
+# %%
 s_log2 = np.log2(df_rolling.squeeze())
 s_normal = df_rolling.squeeze()
 slopes_log2 = s_log2.rolling(
@@ -567,9 +543,13 @@ slopes_normal.squeeze().nlargest(15)
 
 # %% [markdown]
 # if the data would have been log-transformed, exponential growth rate would be roughly
+#
 # $$N(t) = N_0 \cdot e^{rt}$$
+#
 # $$\log_2 N(t) = \log_2 \left( N_0 \cdot e^{rt} \right)$$
+#
 # $$\log_2 N(t) = \log_2 N_0 + rt \cdot \log_2 e$$
+#
 # $$\log_2 N(t) = \log_2 N_0 + \frac{r}{\ln 2}$$
 #
 # To recover r from the slope b, multiply by $ln(2)$.
@@ -591,7 +571,8 @@ _v = slopes_log2.squeeze().loc["2025-11-21 17:50":"2025-11-21 18:10"].median()
 print(f"log-transformed slope at center: {_v:.3f}")
 
 # %% [markdown]
-# ## Use spline to find the maxium
+# ## Use spline to find the maxium growth
+# -
 
 # %% [markdown]
 # Fit spline to the smoothed data and calculate derivatives
@@ -691,6 +672,16 @@ splines, der1, der2 = fit_spline_and_derivatives(
 fig, ax = plot_fitted_data(splines, der1, der2)
 
 # %%
+inflection_points = df_rolling.iloc[[der2.argmax(), der2.argmin()]]
+
+# %%
+max_min_growth_change = [der2.argmax(), der2.argmin()]
+der1.iloc[max_min_growth_change]
+
+# %%
+inflection_points.index - df_rolling.index.min()
+
+# %%
 high_percentage_treshold = 95
 splines, derivatives = fit_spline_and_derivatives_one_batch(
     df_rolling,
@@ -707,17 +698,6 @@ t_to_max_in_h = (derivatives.idxmax() - derivatives.index.min()).dt.seconds / 3_
 t_to_max_in_h
 
 # %% [markdown]
-# recalculate the OD value based on the estimation
-
-# %%
-max_population / (
-    1
-    # scaling term is interesting
-    + ((max_population - initial_population) / initial_population)
-    * np.exp(-growth_rate * (t_to_max_in_h - lag_duration))
-)
-
-# %% [markdown]
 # - lag-phase duration should be estimated (maybe from first derivative plot?)
 # - max population can be measured using OD
 # - min population can be measured using OD
@@ -727,31 +707,10 @@ max_population / (
 # %%
 t_max_corrected = t_to_max_in_h - lag_duration
 od_max = df_rolling.loc[derivatives.idxmax()].squeeze()
-factor = (max_population - initial_population) / initial_population
 max_population / (
     1
     # scaling term is interesting
-    + factor * np.exp(-growth_rate * (t_max_corrected))
-)
-
-# %% [markdown]
-# Apporximate growth rate assuming exponential growth up to max growth time point
-# - this needs to correctly estimate the end of the lag phase
-#
-
-# %%
-np.exp((np.log(od_max / initial_population) / t_max_corrected)) - 1
-
-# %%
-np.exp2((np.log2(od_max) - np.log2(initial_population)) / t_max_corrected) - 1
-
-
-# %%
-calculate_growth_rate(
-    od_max=od_max,
-    initial_population=initial_population,
-    t_max=t_to_max_in_h,
-    lag_duration=3,
+    + np.exp(-growth_rate * (t_max_corrected))
 )
 
 # %% [markdown]
@@ -812,16 +771,5 @@ ax.set_xlabel("Time (hours)")
 ax.set_ylabel("Log(OD)")
 ax.legend()
 
-
-# %%
-t_in_h_exponential_growth = (max_range.end - max_range.start).total_seconds() / 3600
-od_max = df_rolling.loc[max_range.end].squeeze()
-initial_population = df_rolling.loc[max_range.start].squeeze()
-calculate_growth_rate(
-    od_max=od_max,
-    initial_population=initial_population,
-    t_max=t_in_h_exponential_growth,
-    lag_duration=0,
-)
 
 # %%
