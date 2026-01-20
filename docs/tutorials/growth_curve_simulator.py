@@ -550,18 +550,140 @@ slopes_normal.squeeze().nlargest(15)
 #
 # $$\log_2 N(t) = \log_2 N_0 + rt \cdot \log_2 e$$
 #
-# $$\log_2 N(t) = \log_2 N_0 + \frac{r}{\ln 2}$$
+# $$\log_2 N(t) = \log_2 N_0 + \frac{r}{\ln 2} \cdot t$$
 #
-# To recover r from the slope b, multiply by $ln(2)$.
+# To recover r from the slope b, multiply by $\ln(2)\approx 0.69315$.
 #
-# which does not work for non-transformed data
+# which does not work for non-transformed data.
+#
+# Following the same logic for the logistic model, we get that at the inflection point
+# with maximum absolute growth rate, we can recover r from the slope b of the
+# tangent of the log-transformed data as: $ r = b \cdot 2\ln(2)$
+#
+# More explicitly, for a logistic growth model with carrying capacity $K$,
+#
+# $$N(t) = \frac{K}{1 + A e^{-rt}}, \qquad A > 0,$$
+#
+# the log-transformed population is
+#
+# $$\log_2 N(t)
+#   = \log_2\!\left(\frac{K}{1 + A e^{-rt}}\right)
+#   = \log_2 K - \log_2\!\bigl(1 + A e^{-rt}\bigr),$$
+#
+# which is not linear in $t$ because of the $\log_2(1 + A e^{-rt})$ term.
+#
+# Using the logistic differential equation
+#
+# $$\frac{dN}{dt} = r N(t)\left(1 - \frac{N(t)}{K}\right),$$
+#
+# the time derivative of the log-transformed population is
+#
+# $$\frac{d}{dt}\log_2 N(t)
+#   = \frac{1}{\ln 2}\,\frac{1}{N(t)}\,\frac{dN}{dt}
+#   = \frac{r}{\ln 2}\left(1 - \frac{N(t)}{K}\right).$$
+#
+# Denoting the local slope of the $\log_2$-transformed curve by $b(t)$, we have
+#
+# $$b(t) = \frac{r}{\ln 2}\left(1 - \frac{N(t)}{K}\right),$$
+#
+# so that
+#
+# $$r = b(t)\,\ln 2 \,\Big/ \left(1 - \frac{N(t)}{K}\right).$$
+#
+# At low densities $N(t) \ll K$ this simplifies to $b(t) \approx r / \ln 2$,
+# recovering the exponential-growth relation. At the inflection point of the logistic
+# curve, where $N(t) = K/2$ and the absolute growth rate is maximal, we get
+#
+# $$b_{\mathrm{inflection}} = \frac{r}{2\ln 2}
+#   \quad\Rightarrow\quad r = b_{\mathrm{inflection}} \cdot 2 \ln 2.$$
+#
+#
+# For the logistic growth model
+# $$ N(t) = \frac{K}{1 + A e^{-rt}}, \qquad A > 0 $$
+# the (non-transformed) growth rate is given by the logistic differential equation
+# $$ \frac{dN}{dt} = r\,N(t)\left(1 - \frac{N(t)}{K}\right) $$
+#
+# Denoting the local slope of the original (non-log) data by
+# $$ s(t) \approx \frac{dN}{dt} $$
+# we can solve for the growth rate parameter $r$ at time $t$
+# if we also know $N(t)$ and $K$:
+# $$ r = \frac{s(t)}{N(t)\left(1 - \frac{N(t)}{K}\right)} $$
+#
+# A convenient special case is the inflection point of the logistic curve,
+# where $N(t) = K/2$ and the absolute growth rate is maximal:
+# $$ \left.\frac{dN}{dt}\right|_{\text{max}} = s_{\max} $$
+# $$ s_{\max} = r\,\frac{K}{2}\left(1 - \frac{1}{2}\right) $$
+# $$ s_{\max} = \frac{rK}{4} $$
+# Thus, at the inflection point we obtain
+# $$ r = \frac{4\,s_{\max}}{K} $$
+#
+#
+# def r_from_nonlog_slope(slope: float, N: float, K: float, eps: float = 1e-12) -> float:
+#     """
+#     Estimate logistic growth rate r from the slope on non-log data.
+#
+#     Uses: r = s(t) / (N(t) * (1 - N(t)/K))
+#
+#     Returns np.nan if the denominator is numerically unstable.
+#     """
+#     K_eff = K if abs(K) >= eps else np.sign(K) * eps if K != 0 else eps
+#     denom = N * (1 - N / K_eff)
+#     if abs(denom) < eps:
+#         return np.nan
+#     return slope / denom
+#
+#
+# def r_from_inflection_smax(smax: float, K: float, eps: float = 1e-12) -> float:
+#     """
+#     Estimate logistic growth rate r at the inflection point from s_max and K.
+#
+#     Uses: r = 4 * s_max / K
+#     """
+#     if abs(K) < eps:
+#         return np.nan
+#     return 4.0 * smax / K
+#
+#
+# def r_from_log2_slope_general(
+#     b_log2: float, N: float, K: float, eps: float = 1e-12
+# ) -> float:
+#     """
+#     Estimate r from the local slope on log2-transformed data.
+#
+#     From: b(t) = r/ln(2) * (1 - N(t)/K)
+#     => r = b(t) * ln(2) / (1 - N/K)
+#     """
+#     K_eff = K if abs(K) >= eps else np.sign(K) * eps if K != 0 else eps
+#     denom = 1.0 - (N / K_eff)
+#     if abs(denom) < eps:
+#         return np.nan
+#     return b_log2 * np.log(2) / denom
+#
+#
+# def r_from_log2_slope_at_inflection(b_log2: float) -> float:
+#     """
+#     Estimate r at the inflection point from log2 slope.
+#
+#     At inflection: b = r / (2 ln 2) => r = b * 2 ln 2
+#     """
+#     return b_log2 * 2.0 * np.log(2)
+#
+#
+# So, using the original (non-transformed) data, one can recover $r$ from the slope **if** the carrying capacity $K$ and the current value $N(t)$ (or at least that the point is at the inflection, $N = K/2$) are known.
 
 # %%
 print(f"Growth rate in model:  {growth_rate:.3f}")
-print(f"Non-transformed slop:  {slopes_normal.max():.3f}")
-print(f"Non-transformed est. r:  {slopes_normal.max() * np.log(2):.3f}")
+print(f"Non-transformed slope:  {slopes_normal.max():.3f}")
+K_half = s_normal.loc[slopes_normal.idxmax()] - s_normal.nsmallest(10).median()
+print(f"Value of curve at max slope: {K_half:.3f}")
+print(
+    f"Non-transformed est. r with est. K:  {slopes_normal.max() * 4 / (2 * K_half):.3f}"
+)
+print(
+    f"Non-transformed est. r with true K:  {slopes_normal.max() * 4 / (max_population):.3f}"
+)
 print(f"Log2-transformed slope: {slopes_log2.max():.3f}")
-print(f"Log2-transformed est. r: {slopes_log2.max() * np.log(2):.3f}")
+print(f"Log2-transformed est. r: {slopes_log2.max() *2 * np.log(2):.3f}")
 
 # %%
 print("Median slope around center point (plus-minus 10mins)")
@@ -569,6 +691,7 @@ _v = slopes_normal.squeeze().loc["2025-11-21 17:50":"2025-11-21 18:10"].median()
 print(f"non-transformed slope at center: {_v:.3f}")
 _v = slopes_log2.squeeze().loc["2025-11-21 17:50":"2025-11-21 18:10"].median()
 print(f"log-transformed slope at center: {_v:.3f}")
+print(f"Log2-transformed est. r: {_v * 2 * np.log(2):.3f}")
 
 # %% [markdown]
 # ## Use spline to find the maxium growth
