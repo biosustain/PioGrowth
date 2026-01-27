@@ -899,11 +899,11 @@ ax.legend()
 
 # %% [markdown]
 # ## Croissance estimate
-# Using croissance package to estimate growth parameters from biosustain
+# Using croissance package to estimate growth parameters from biosustain:
+# [croissance](https://pypi.org/project/croissance/)
 
 # %%
 # croissance.process_curve?
-
 
 # %%
 s_normal_in_h = (
