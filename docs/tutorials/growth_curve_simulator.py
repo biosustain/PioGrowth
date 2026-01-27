@@ -25,6 +25,7 @@
 # %%
 from typing import Iterable, NamedTuple
 
+import croissance
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -35,6 +36,7 @@ from piogrowth.durations import find_max_range
 from piogrowth.fit import fit_spline_and_derivatives_one_batch, get_smoothing_range
 
 
+# %%
 class GrowthParams(NamedTuple):
     a: float
     r: float
@@ -894,5 +896,29 @@ ax.set_xlabel("Time (hours)")
 ax.set_ylabel("Log(OD)")
 ax.legend()
 
+
+# %% [markdown]
+# ## Croissance estimate
+# Using croissance package to estimate growth parameters from biosustain
+
+# %%
+# croissance.process_curve?
+
+
+# %%
+s_normal_in_h = (
+    pd.Series(pop_noisy, time_in_h).rolling(31, min_periods=15, center=True).median()
+)
+s_normal_in_h
+
+# %%
+ret = croissance.process_curve(s_normal_in_h)
+gp = ret.growth_phases[0]
+gp.slope, gp.intercept
+
+# %%
+from croissance.figures.plot import plot_processed_curve
+
+fig, axes = plot_processed_curve(ret, yscale="both")
 
 # %%
