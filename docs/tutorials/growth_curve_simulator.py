@@ -544,6 +544,7 @@ slopes_normal.squeeze().nlargest(15)
 # Looks like the growth rate in the model and from the slopes are hard to convenve.
 
 # %% [markdown]
+# ## Exponential growth rate estimation from slopes
 # if the data would have been log-transformed, exponential growth rate would be roughly
 #
 # $$N(t) = N_0 \cdot e^{rt}$$
@@ -601,76 +602,91 @@ slopes_normal.squeeze().nlargest(15)
 #
 #
 # For the logistic growth model
+#
 # $$ N(t) = \frac{K}{1 + A e^{-rt}}, \qquad A > 0 $$
+#
 # the (non-transformed) growth rate is given by the logistic differential equation
+#
 # $$ \frac{dN}{dt} = r\,N(t)\left(1 - \frac{N(t)}{K}\right) $$
 #
 # Denoting the local slope of the original (non-log) data by
+#
 # $$ s(t) \approx \frac{dN}{dt} $$
+#
 # we can solve for the growth rate parameter $r$ at time $t$
 # if we also know $N(t)$ and $K$:
+#
 # $$ r = \frac{s(t)}{N(t)\left(1 - \frac{N(t)}{K}\right)} $$
 #
 # A convenient special case is the inflection point of the logistic curve,
 # where $N(t) = K/2$ and the absolute growth rate is maximal:
+#
 # $$ \left.\frac{dN}{dt}\right|_{\text{max}} = s_{\max} $$
+#
 # $$ s_{\max} = r\,\frac{K}{2}\left(1 - \frac{1}{2}\right) $$
+#
 # $$ s_{\max} = \frac{rK}{4} $$
+#
 # Thus, at the inflection point we obtain
+#
 # $$ r = \frac{4\,s_{\max}}{K} $$
-#
-#
-# def r_from_nonlog_slope(slope: float, N: float, K: float, eps: float = 1e-12) -> float:
-#     """
-#     Estimate logistic growth rate r from the slope on non-log data.
-#
-#     Uses: r = s(t) / (N(t) * (1 - N(t)/K))
-#
-#     Returns np.nan if the denominator is numerically unstable.
-#     """
-#     K_eff = K if abs(K) >= eps else np.sign(K) * eps if K != 0 else eps
-#     denom = N * (1 - N / K_eff)
-#     if abs(denom) < eps:
-#         return np.nan
-#     return slope / denom
-#
-#
-# def r_from_inflection_smax(smax: float, K: float, eps: float = 1e-12) -> float:
-#     """
-#     Estimate logistic growth rate r at the inflection point from s_max and K.
-#
-#     Uses: r = 4 * s_max / K
-#     """
-#     if abs(K) < eps:
-#         return np.nan
-#     return 4.0 * smax / K
-#
-#
-# def r_from_log2_slope_general(
-#     b_log2: float, N: float, K: float, eps: float = 1e-12
-# ) -> float:
-#     """
-#     Estimate r from the local slope on log2-transformed data.
-#
-#     From: b(t) = r/ln(2) * (1 - N(t)/K)
-#     => r = b(t) * ln(2) / (1 - N/K)
-#     """
-#     K_eff = K if abs(K) >= eps else np.sign(K) * eps if K != 0 else eps
-#     denom = 1.0 - (N / K_eff)
-#     if abs(denom) < eps:
-#         return np.nan
-#     return b_log2 * np.log(2) / denom
-#
-#
-# def r_from_log2_slope_at_inflection(b_log2: float) -> float:
-#     """
-#     Estimate r at the inflection point from log2 slope.
-#
-#     At inflection: b = r / (2 ln 2) => r = b * 2 ln 2
-#     """
-#     return b_log2 * 2.0 * np.log(2)
-#
-#
+
+# %%
+# some code snippets to explore
+
+
+def r_from_nonlog_slope(slope: float, N: float, K: float, eps: float = 1e-12) -> float:
+    """
+    Estimate logistic growth rate r from the slope on non-log data.
+
+    Uses: r = s(t) / (N(t) * (1 - N(t)/K))
+
+    Returns np.nan if the denominator is numerically unstable.
+    """
+    K_eff = K if abs(K) >= eps else np.sign(K) * eps if K != 0 else eps
+    denom = N * (1 - N / K_eff)
+    if abs(denom) < eps:
+        return np.nan
+    return slope / denom
+
+
+def r_from_inflection_smax(smax: float, K: float, eps: float = 1e-12) -> float:
+    """
+    Estimate logistic growth rate r at the inflection point from s_max and K.
+
+    Uses: r = 4 * s_max / K
+    """
+    if abs(K) < eps:
+        return np.nan
+    return 4.0 * smax / K
+
+
+def r_from_log2_slope_general(
+    b_log2: float, N: float, K: float, eps: float = 1e-12
+) -> float:
+    """
+    Estimate r from the local slope on log2-transformed data.
+
+    From: b(t) = r/ln(2) * (1 - N(t)/K)
+    => r = b(t) * ln(2) / (1 - N/K)
+    """
+    K_eff = K if abs(K) >= eps else np.sign(K) * eps if K != 0 else eps
+    denom = 1.0 - (N / K_eff)
+    if abs(denom) < eps:
+        return np.nan
+    return b_log2 * np.log(2) / denom
+
+
+def r_from_log2_slope_at_inflection(b_log2: float) -> float:
+    """
+    Estimate r at the inflection point from log2 slope.
+
+    At inflection: b = r / (2 ln 2) => r = b * 2 ln 2
+    """
+    return b_log2 * 2.0 * np.log(2)
+
+
+# %% [markdown]
 # So, using the original (non-transformed) data, one can recover $r$ from the slope **if** the carrying capacity $K$ and the current value $N(t)$ (or at least that the point is at the inflection, $N = K/2$) are known.
 
 # %%
