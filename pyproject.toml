@@ -28,6 +28,7 @@ dependencies = [
     "streamlit",
     "scikit-learn",
     "scipy",
+    "growthcurves",
 ]
 # use requirements.txt instead of pyproject.toml for dependencies
 # https://stackoverflow.com/a/73600610/9684872

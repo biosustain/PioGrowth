@@ -26,6 +26,7 @@
 from typing import Iterable, NamedTuple
 
 import croissance
+import growthcurves as gc
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -33,7 +34,7 @@ from scipy.optimize import curve_fit
 from sklearn.linear_model import LinearRegression
 
 from piogrowth.durations import find_max_range
-from piogrowth.fit import fit_spline_and_derivatives_one_batch, get_smoothing_range
+from piogrowth.fit_spline import fit_spline_and_derivatives_one_batch, get_smoothing_range
 
 
 # %%
@@ -687,7 +688,9 @@ def r_from_log2_slope_at_inflection(b_log2: float) -> float:
 
 
 # %% [markdown]
-# So, using the original (non-transformed) data, one can recover $r$ from the slope **if** the carrying capacity $K$ and the current value $N(t)$ (or at least that the point is at the inflection, $N = K/2$) are known.
+# So, using the original (non-transformed) data, one can recover $r$ from the slope
+# **if** the carrying capacity $K$ and the current value $N(t)$ (or at least that
+# the point is at the inflection, $N = K/2$) are known.
 
 # %%
 print(f"Growth rate in model:  {growth_rate:.3f}")
@@ -936,5 +939,55 @@ gp.slope, gp.intercept
 from croissance.figures.plot import plot_processed_curve
 
 fig, axes = plot_processed_curve(ret, yscale="both")
+
+# %% [markdown]
+# ## Growthcurves package
+# Use the [growthcurves](https://pypi.org/project/growthcurves/ package to fit the
+# logistic model and estimate parameters
+
+# %%
+_ = s_normal_in_h.plot(
+    figsize=(8, 5), title="Smoothed growth curve for growthcurves pkg"
+)
+
+# %%
+time = s_normal_in_h.index.values
+fit_sliding_window = gc.non_parametric.fit_non_parametric(
+    t=time,
+    y=s_normal_in_h.values,
+    method="sliding_window",
+    window_points=51,
+)
+
+stats_sliding_window = gc.inference.extract_stats(
+    fit_sliding_window,
+    t=time,
+    y=s_normal_in_h.values,
+    phase_boundary_method="tangent",
+)
+
+
+# %%
+def print_formatted_fit(fit_result):
+    print(f"Fitted model: {fit_result['model_type']}")
+    print("Fitted parameters:")
+    for param, value in fit_result["params"].items():
+        print(f" - {param:>14}: {value:7.4f}")
+
+
+def print_formatted_stats(stats):
+    print("Extracted growth statistics:")
+    for stat, value in stats.items():
+        if value is None:
+            value = np.nan
+        if isinstance(value, str):
+            print(f" - {stat:>22}: {value}")
+        else:
+            print(f" - {stat:>22}: {value:7.4f}")
+
+
+print_formatted_fit(fit_sliding_window)
+print()
+print_formatted_stats(stats_sliding_window)
 
 # %%

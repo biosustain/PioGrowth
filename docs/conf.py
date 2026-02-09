@@ -17,7 +17,7 @@ from importlib import metadata
 
 project = "piogrowth"
 copyright = "2025, Henry Webel, DSP team"
-author = " Henry Webel"
+author = "Henry Webel, DSP team"
 PACKAGE_VERSION = metadata.version("piogrowth")
 version = PACKAGE_VERSION
 release = PACKAGE_VERSION
