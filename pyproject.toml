@@ -20,7 +20,7 @@ license = "MIT" # https://choosealicense.com/
 # # add dependencies here: (use one of the two)
 dependencies = [
     "numpy",
-    "pandas",
+    "pandas[excel]",
     "scipy",
     "matplotlib",
     "seaborn",
