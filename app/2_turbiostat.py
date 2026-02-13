@@ -7,14 +7,14 @@ from names import summary_mapping
 from plots import (
     create_figure_bytes_to_download,
     plot_derivatives,
-    plot_fitted_data,
+    plot_growth_data,
     plot_growth_data_w_peaks,
     reindex_w_relative_time,
 )
 from ui_components import show_warning_to_upload_data
 
 from piogrowth.durations import find_max_range
-from piogrowth.fit import fit_growth_data_w_peaks
+from piogrowth.fit_spline import fit_growth_data_w_peaks
 from piogrowth.turbistat import detect_peaks
 
 
@@ -53,6 +53,7 @@ DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (h
 # UI
 
 st.title("Growth Analysis of turbidostat mode")
+st.error("Not updated to use growthcurves package yet, so rather do not use it.")
 
 if no_data_uploaded:
     show_warning_to_upload_data()
@@ -326,7 +327,7 @@ if use_elapsed_time:
     splines_view = reindex_w_relative_time(splines)
     d_maxima_view = reindex_w_relative_time(d_maxima_view)
 
-fig, axes = plot_fitted_data(
+fig, axes = plot_growth_data(
     splines_view,
     xlabel=xlabel,
 )
