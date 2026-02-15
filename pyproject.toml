@@ -20,11 +20,13 @@ license = "MIT" # https://choosealicense.com/
 # # add dependencies here: (use one of the two)
 dependencies = [
     "numpy",
-    "pandas",
+    "pandas[excel]",
     "scipy",
     "matplotlib",
     "seaborn",
     "streamlit",
+    # "growthcurves @ git+https://github.com/biosustain/growthcurves@main",
+    "growthcurves==0.6.1"
 ]
 # use requirements.txt instead of pyproject.toml for dependencies
 # https://stackoverflow.com/a/73600610/9684872

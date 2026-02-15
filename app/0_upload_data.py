@@ -1,9 +1,12 @@
+from io import BytesIO
+
 import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
 from plots import plot_growth_data_w_mask, reindex_w_relative_time
 
 import piogrowth
+import piogrowth.convert_qurve
 
 custom_id = st.session_state["custom_id"]
 df_raw_od_data = st.session_state["df_raw_od_data"]
@@ -11,6 +14,7 @@ df_wide_raw_od_data = st.session_state.get("df_wide_raw_od_data")
 df_wide_raw_od_data_filtered = st.session_state.get("df_wide_raw_od_data_filtered")
 df_rolling = st.session_state.get("df_rolling")
 df_time_map = st.session_state.get("df_time_map")
+df_qurve_format = st.session_state.get("df_qurve_format")
 masked = st.session_state.get("masked")
 min_periods = st.session_state.get("min_periods", 5)
 # use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
@@ -454,9 +458,37 @@ if df_rolling is not None:
     )
 
 st.markdown("### Store in QurvE format")
-st.info("This feature is not yet implemented.")
-# convert = st.button("Store in QurvE format", key="store_in_QurvE")
 
-# if convert:
-#     st.warning("fct to convert to QurvE not implemented.")
-# store in state
+if st.session_state.get("df_qurve_format") is None:
+    convert = st.button("Store QurvE format data", key="create_qurve_format")
+
+if st.session_state.get("df_qurve_format") is None and convert:
+    if df_wide_raw_od_data_filtered is not None:
+        # Convert to QurvE format
+        def to_qurve_format(df):
+            df = df.copy()
+            df.columns = piogrowth.convert_qurve.build_three_row_header(df.columns)
+            df.index.name = ""
+            df.columns.names = ["Time (h)", "", ""]
+            # ! replace with library function
+            df.index = (df.index - df.index[0]).total_seconds() / 3600.0
+            return df
+
+        qurve_data = to_qurve_format(df_wide_raw_od_data_filtered)
+        # Convert to Excel using BytesIO
+        buffer = BytesIO()
+        qurve_data.to_excel(buffer, index=True)
+        buffer.seek(0)
+        st.session_state["df_qurve_format"] = buffer
+    else:
+        st.warning("No filtered data available to convert to QurvE format.")
+
+
+if st.session_state.get("df_qurve_format") is not None:
+    st.download_button(
+        label="Download QurvE format data",
+        data=st.session_state["df_qurve_format"],
+        file_name=f"{custom_id}_qurve_format.xlsx",
+        mime="mime/xlsx",
+        key="download_qurve_format",
+    )

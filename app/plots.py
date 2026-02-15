@@ -112,7 +112,7 @@ def plot_growth_data_w_peaks(
     return fig, axes
 
 
-def plot_fitted_data(
+def plot_growth_data(
     splines,
     titles=None,
     ylabel="OD readings",
