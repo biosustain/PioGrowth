@@ -80,10 +80,16 @@ with st.form("Upload_data_form", clear_on_submit=False):
             options=df_raw_od_data["pioreactor_unit"].unique(),
         )
     round_time = st.slider(
-        "Round time to nearest second (defining timesteps)", 0, 15, 5, step=1
+        "Round time to nearest second (defining timesteps)."
+        "Can be used to align timeseries "
+        "with slight time offsets.",
+        0,
+        60,
+        5,
+        step=1,
     )
     # Options for handeling negative OD readings
-    st.write("Data filtering options:")
+    st.write("#### Data filtering options:")
     filter_columns = st.columns(3)
     remove_negative = filter_columns[0].checkbox(
         "Remove negative OD readings",
@@ -101,7 +107,7 @@ with st.form("Upload_data_form", clear_on_submit=False):
         step=0.01,
     )
     filter_by_iqr_range = filter_columns[2].checkbox(
-        "Remove outliers by IQR",
+        "Remove outliers by Inter-Quartil-Range (IQR) in rolling window of timepoints",
         value=False,
     )
     iqr_range_value = filter_columns[2].slider(
@@ -112,10 +118,10 @@ with st.form("Upload_data_form", clear_on_submit=False):
         step=0.1,
     )
     rolling_window = filter_columns[2].slider(
-        "Rolling window (in seconds)",
+        "Rolling window (of timepoints) for IQR outlier removal",
         11,
         61,
-        31,
+        21,
         step=2,
     )
     st.divider()
