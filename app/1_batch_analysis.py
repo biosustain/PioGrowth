@@ -71,6 +71,20 @@ with st.form("Batch_processing_options", enter_to_submit=True):
         smoothing_range.s_min,
         step=1,
     )
+    n_fits_sliding_window = st.slider(
+        "Number of fits used for sliding window to calculate derivatives",
+        5,
+        200,
+        50,
+        step=5,
+    )
+    n_window_size = st.slider(
+        "Window size for sliding window method (in hours)",
+        3,
+        1000,
+        300,
+        step=3,
+    )
     # ! Add tangent and threshold method options here
     # method = st.radio(
     #     "Select method for exponential phase detection:",
@@ -101,7 +115,13 @@ if form_submit and not no_data_uploaded:
     # Use starttime for timestamp calculations using elapsed time
     # start_time = df_rolling.index[0] if not no_data_uploaded else None
     # run on non-log transformed data (handled by growthcurves)
-    stats_fit = run_model_fitting_on_df(df_rolling, model_name=selected_model)
+    stats_fit = run_model_fitting_on_df(
+        df_rolling,
+        model_name=selected_model,
+        n_fits=n_fits_sliding_window,
+        spline_s=spline_smoothing_value,
+        window_points=n_window_size,
+    )
 
     mu_max = stats_fit["mu_max"]
     time_at_mu_max = stats_fit["time_at_umax"]
