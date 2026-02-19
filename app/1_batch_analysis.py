@@ -5,7 +5,7 @@ import streamlit as st
 from buttons import download_data_button_in_sidebar
 
 # from names import summary_mapping
-from plots import plot_growth_data, reindex_w_relative_time
+from plots import plot_growth_data
 from ui_components import render_markdown, show_warning_to_upload_data
 
 # from piogrowth.durations import find_max_range
@@ -32,6 +32,7 @@ use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
 df_time_map = st.session_state.get("df_time_map")
 no_data_uploaded = st.session_state.get("df_rolling") is None
 df_rolling = st.session_state.get("df_rolling")
+start_time = st.session_state.get("start_time")
 
 DEFAULT_XLABEL_TPS = st.session_state.get("DEFAULT_XLABEL_TPS", "Timepoints (rounded)")
 DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (hours)")
@@ -98,7 +99,7 @@ if not no_data_uploaded:
 if form_submit and not no_data_uploaded:
     Y_LABEL = "OD readings"
     # Use starttime for timestamp calculations using elapsed time
-    start_time = df_rolling.index[0] if not no_data_uploaded else None
+    # start_time = df_rolling.index[0] if not no_data_uploaded else None
     # run on non-log transformed data (handled by growthcurves)
     stats_fit = run_model_fitting_on_df(df_rolling, model_name=selected_model)
 
@@ -111,14 +112,14 @@ if form_submit and not no_data_uploaded:
     # will be changed to represent time mappings
     # df_rolling should be reindexed to elapsed time for calculations and plotting
     # with start time the original index can be restored
-    df_rolling_view = reindex_w_relative_time(df_rolling)
+    # df_rolling_view = reindex_w_relative_time(df_rolling)
 
     titles = [
         f"{col} - $\\mu$ max {mu:<.5f} at {idx:<.3f} hours"
         for col, mu, idx in zip(df_rolling.columns, mu_max, time_at_mu_max)
     ]
 
-    msg = f"""
+    msg = """
     In plots the maximum change in OD (fitted) is indicated by the red dashed lines.
     The maximum change in OD (fitted) and it's timepoint is mentioned in the title of
     each plot. The selected range within the **gray shaded area** indicates the time
@@ -135,7 +136,7 @@ if form_submit and not no_data_uploaded:
     xlabel = DEFAULT_XLABEL_REL + f" since start at {start_time}"
 
     fig, axes = plot_growth_data(
-        df_rolling_view, titles=titles, ylabel=Y_LABEL, xlabel=xlabel
+        df_rolling, titles=titles, ylabel=Y_LABEL, xlabel=xlabel
     )
     axes = axes.flatten()
     for ax, x in zip(axes, time_at_mu_max):
@@ -160,7 +161,7 @@ if form_submit and not no_data_uploaded:
     ## Plot on log scale
     st.title("Show data on log scale")
     fig_log, axes = plot_growth_data(
-        np.log((df_rolling_view + 0.01)),
+        np.log((df_rolling + 0.01)),
         titles=titles,
         ylabel="ln(OD readings)",
         xlabel=xlabel,

@@ -9,10 +9,10 @@ from plots import (
     plot_derivatives,
     plot_growth_data,
     plot_growth_data_w_peaks,
-    reindex_w_relative_time,
 )
 from ui_components import show_warning_to_upload_data
 
+import piogrowth
 from piogrowth.durations import find_max_range
 from piogrowth.fit_spline import fit_growth_data_w_peaks
 from piogrowth.turbistat import detect_peaks
@@ -54,7 +54,7 @@ DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (h
 
 st.title("Growth Analysis of turbidostat mode")
 st.error("Not updated to use growthcurves package yet, so rather do not use it.")
-
+st.stop()
 if no_data_uploaded:
     show_warning_to_upload_data()
     st.stop()
@@ -273,8 +273,8 @@ xlabel = DEFAULT_XLABEL_TPS
 if use_elapsed_time:
     # reindex all data to elapsed time for plotting
     xlabel = DEFAULT_XLABEL_REL
-    df_rolling_view = reindex_w_relative_time(df_rolling)
-    peaks_view = reindex_w_relative_time(peaks)
+    df_rolling_view = piogrowth.reindex_w_relative_time(df_rolling)
+    peaks_view = piogrowth.reindex_w_relative_time(peaks)
     # alternative for reindex_w_relative_time
 fig, axes = plot_growth_data_w_peaks(
     df_rolling_view, peaks_view, is_data_index=not use_elapsed_time

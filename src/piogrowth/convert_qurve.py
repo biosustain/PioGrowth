@@ -1,5 +1,7 @@
 import pandas as pd
 
+import piogrowth
+
 
 def build_three_row_header(columns):
     """Take sample names from columns, and add replicate and concentration
@@ -10,3 +12,13 @@ def build_three_row_header(columns):
         names=["sample", "replicate", "concentration"],
     )
     return header
+
+
+def to_qurve_format(df, start_time=None):
+    df = df.copy()
+    df.columns = build_three_row_header(df.columns)
+    df = piogrowth.reindex_w_relative_time(df, start_time=start_time)
+    df.index.name = ""
+    df.columns.names = ["Time (h)", "", ""]
+
+    return df

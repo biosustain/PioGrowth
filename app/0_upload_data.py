@@ -3,7 +3,7 @@ from io import BytesIO
 import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
-from plots import plot_growth_data_w_mask, reindex_w_relative_time
+from plots import plot_growth_data_w_mask
 
 import piogrowth
 import piogrowth.convert_qurve
@@ -143,6 +143,19 @@ with st.form("Upload_data_form", clear_on_submit=False):
                 df_raw_od_data["timestamp_rounded"].max(),
             ),
         )
+    st.warning(
+        "Note: This should be used primarily to cut the end of measurements."
+        " It might be used if after initial setup the PioReactors adjustments"
+        " distored the mounted sensors on the reactors."
+    )
+    update_zero_timepoint = st.checkbox(
+        "Readjust zero",
+        value=False,
+        help=(
+            "If checked, a new zero time is set to the minimum timestamp of the overall"
+            " time window."
+        ),
+    )
     st.divider()
     if df_wide_raw_od_data is not None:
         with st.expander("Select time window per reactor"):
@@ -195,6 +208,7 @@ if button_pressed and file is None and df_raw_od_data is None:
 
 msg = ""
 
+# File Uploaded ########################################################################
 # this runs wheather the button is pressed or not, but only if a file is uploaded
 if file is not None:
     df_raw_od_data = piogrowth.load.read_csv(file)
@@ -280,7 +294,7 @@ if file is not None:
         # ? replace with callback function that creates the input form?
         st.rerun()
 
-
+### Apply option from form #############################################################
 if button_pressed:
     # Filter reactors (all measurements from selected reactors)
     if reactors_selected:
@@ -302,6 +316,9 @@ if button_pressed:
         df_wide_raw_od_data = df_wide_raw_od_data.loc[min_date:max_date]
         st.info(f"Time range: {min_date} to {max_date}")
 
+    if update_zero_timepoint:
+        start_time = min_date
+
     for reactor, time_range in time_ranges.items():
         if reactor not in df_wide_raw_od_data.columns:
             continue
@@ -312,6 +329,10 @@ if button_pressed:
             _min_date:_max_date, reactor
         ]
 
+        if update_zero_timepoint and start_time < _min_date:
+            # update start time if new zero time is after current start time
+            start_time = _min_date
+
     # initalize masked here
     masked = pd.DataFrame(
         False,
@@ -320,6 +341,7 @@ if button_pressed:
     )
     df_wide_raw_od_data_filtered = df_wide_raw_od_data.copy()
 
+    #### Apply Data Filtering options ##################################################
     # Handle negative values
     if remove_negative:
         mask_negative = df_wide_raw_od_data_filtered < 0
@@ -385,9 +407,11 @@ if button_pressed:
         .sort_index()
     )
     # ! check if overwriting start time has consequences
+    #### switch wide data to time eplased in hours #####################################
     st.session_state["start_time"] = df_wide_raw_od_data_filtered.index[0]
-    df_rolling = reindex_w_relative_time(
+    df_rolling = piogrowth.reindex_w_relative_time(
         df=df_rolling,
+        start_time=st.session_state["start_time"],
     )
     st.session_state["df_rolling"] = df_rolling
 
@@ -415,11 +439,13 @@ if df_wide_raw_od_data is not None and masked is not None:
     if not use_same_yaxis_scale:
         st.warning("Using different y-axis scale for each reactor.")
     if use_elapsed_time:
-        df_wide_raw_od_data = reindex_w_relative_time(
+        df_wide_raw_od_data = piogrowth.reindex_w_relative_time(
             df=df_wide_raw_od_data,
+            start_time=st.session_state["start_time"],
         )
-        masked = reindex_w_relative_time(
+        masked = piogrowth.reindex_w_relative_time(
             df=masked,
+            start_time=st.session_state["start_time"],
         )
     fig = plot_growth_data_w_mask(
         df_wide_raw_od_data,
@@ -479,24 +505,21 @@ if df_rolling is not None:
 
 st.markdown("### Store in QurvE format")
 
-if st.session_state.get("df_qurve_format") is None:
-    convert = st.button("Store QurvE format data", key="create_qurve_format")
+# ? maybe add some invalidation
+convert = st.button("Store QurvE format data", key="create_qurve_format")
 
-if st.session_state.get("df_qurve_format") is None and convert:
+if convert:
     if df_wide_raw_od_data_filtered is not None:
-        # Convert to QurvE format
-        def to_qurve_format(df):
-            df = df.copy()
-            df.columns = piogrowth.convert_qurve.build_three_row_header(df.columns)
-            df.index.name = ""
-            df.columns.names = ["Time (h)", "", ""]
-            return df
-
-        qurve_data = to_qurve_format(df_wide_raw_od_data_filtered)
-        # Convert to Excel using BytesIO
-        buffer = BytesIO()
-        qurve_data.to_excel(buffer, index=True)
-        buffer.seek(0)
+        with st.spinner("Converting to QurvE format...", show_time=True):
+            # df_wide_raw_od_data_filtered is in wide data format with timestamp_rounded
+            qurve_data = piogrowth.convert_qurve.to_qurve_format(
+                df_wide_raw_od_data_filtered,
+                start_time=st.session_state["start_time"],
+            )
+            # Convert to Excel using BytesIO
+            buffer = BytesIO()
+            qurve_data.to_excel(buffer, index=True)
+            buffer.seek(0)
         st.session_state["df_qurve_format"] = buffer
     else:
         st.warning("No filtered data available to convert to QurvE format.")
