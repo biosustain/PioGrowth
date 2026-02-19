@@ -55,8 +55,7 @@ if file is None:
             )
         st.info("Upload a comma-separated (csv) file to get started.")
 
-########################################################################################
-# Filtering Form
+### Form ##############################################################################
 with st.form("Upload_data_form", clear_on_submit=False):
 
     custom_id = st.text_input(
@@ -92,7 +91,22 @@ with st.form("Upload_data_form", clear_on_submit=False):
     st.write("#### Data filtering options:")
     filter_columns = st.columns(3)
     remove_negative = filter_columns[0].checkbox(
-        "Remove negative OD readings",
+        "Set negative OD readings to missing (NaN)",
+        help=(
+            "Negative values will distor the curve fitting as the logarith is set to "
+            "NaN."
+        ),
+        value=True,
+    )
+    fill_na = filter_columns[0].checkbox(
+        "Impute missing bioscatter readings using forward and backward filling",
+        help=(
+            "If checked, missing values will be "
+            "imputed using forward fill and backward fill. This is recommended if you "
+            "expect only a few missing or negative values that are likely due to "
+            "measurement errors.  Note that this will include negative zeros which"
+            " were previously removed using the above option."
+        ),
         value=False,
     )
     remove_max = filter_columns[1].checkbox(
@@ -343,6 +357,10 @@ if button_pressed:
 
     #### Apply Data Filtering options ##################################################
     # Handle negative values
+    n_negative = (df_wide_raw_od_data_filtered < 0).sum().sum()
+    if n_negative > 0:
+        st.warning(f"Found {n_negative:,d} negative OD readings.")
+        msg += f"- Found {n_negative:,d} negative OD readings.\n"
     if remove_negative:
         mask_negative = df_wide_raw_od_data_filtered < 0
         msg += (
@@ -351,6 +369,14 @@ if button_pressed:
         msg += f"   - in detail: {mask_negative.sum().to_dict()}\n"
         df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_negative)
         masked = masked | mask_negative
+    if fill_na:
+        mask_na = df_wide_raw_od_data_filtered.isna()
+        msg += f"- Filling {mask_na.sum().sum():,d} missing OD readings.\n"
+        msg += f"   - in detail: {mask_na.sum().to_dict()}\n"
+        # ! should I visualize the values differently?
+        df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.fillna(
+            method="ffill"
+        ).fillna(method="bfill")
 
     # remove quantiles
     if remove_max:
