@@ -126,6 +126,7 @@ with st.form("Upload_data_form", clear_on_submit=False):
     )
     st.divider()
     st.write(
+        "#### Time window selection:\n"
         "Select time window for data to be processed. Dates are inferred from "
         "uploaded data. This won't be plotted in red as filtered data, but just "
         "cap the datapoints for reactors outside of the selected time window."
@@ -159,7 +160,7 @@ with st.form("Upload_data_form", clear_on_submit=False):
                     ),
                 )
     st.divider()
-    st.write("Plotting options:")
+    st.write("#### Plotting options:")
     use_same_yaxis_scale = st.checkbox(
         "Use same y-axis for all reactors?",
         value=False,
@@ -167,7 +168,7 @@ with st.form("Upload_data_form", clear_on_submit=False):
         help="Select plotting behaviour.",
     )
     use_elapsed_time = st.checkbox(
-        "Use elapsed time (since start) as x-axis?",
+        "Use elapsed time (since start) as x-axis on plots?",
         value=True,
         key="elapsed_time_option",
         help="If checked, elapsed time will be used as x-axis in plots.",
@@ -194,7 +195,7 @@ if button_pressed and file is None and df_raw_od_data is None:
 
 msg = ""
 
-# this runs wheather the button is pressed or not, but only if a file is uploaded?
+# this runs wheather the button is pressed or not, but only if a file is uploaded
 if file is not None:
     df_raw_od_data = piogrowth.load.read_csv(file)
 
@@ -215,7 +216,7 @@ if file is not None:
     # use starttime to compute elapsed time
     start_time = df_raw_od_data["timestamp_rounded"].min()
     st.session_state["start_time"] = start_time
-    df_raw_od_data["elapsed_time"] = (
+    df_raw_od_data["elapsed_time_in_seconds"] = (
         df_raw_od_data["timestamp_rounded"] - start_time
     ).dt.total_seconds()
     msg += f"- Added elapsed time in seconds since start ({start_time}).\n"
@@ -228,7 +229,7 @@ if file is not None:
                 [
                     "timestamp_rounded",
                     "timestamp_localtime",
-                    "elapsed_time",
+                    "elapsed_time_in_seconds",
                     "pioreactor_unit",
                     "od_reading",
                 ]
@@ -293,6 +294,7 @@ if button_pressed:
             df_raw_od_data = df_raw_od_data.loc[~mask]
         else:
             df_raw_od_data = df_raw_od_data.loc[mask]
+
     # skip first or last measurements based on user input (after first loading the data)
     # ! won't be plotted in red as filtered data, but just not appear in the plots
     # ! applied to wide raw data
@@ -328,6 +330,7 @@ if button_pressed:
         df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_negative)
         masked = masked | mask_negative
 
+    # remove quantiles
     if remove_max:
         mask_extreme_values = (
             df_wide_raw_od_data_filtered
@@ -369,30 +372,36 @@ if button_pressed:
 
     masked = masked.convert_dtypes()
 
-    # from pathlib import Path
-    # fpath = Path(f"playground/data/{custom_id}_masked_values.csv")
-    # fpath.parent.mkdir(exist_ok=True, parents=True)
-    # masked.to_csv(fpath)
-    # df_wide_raw_od_data.to_csv(Path(f"playground/data/{custom_id}_raw_wide_data.csv"))
     st.session_state["df_wide_raw_od_data_filtered"] = df_wide_raw_od_data_filtered
     st.session_state["masked"] = masked
 
-    df_rolling = df_wide_raw_od_data_filtered.rolling(
-        rolling_window,
-        min_periods=min_periods,
-        center=True,
-    ).median()
+    df_rolling = (
+        df_wide_raw_od_data_filtered.rolling(
+            rolling_window,
+            min_periods=min_periods,
+            center=True,
+        )
+        .median()
+        .sort_index()
+    )
+    # ! check if overwriting start time has consequences
+    st.session_state["start_time"] = df_wide_raw_od_data_filtered.index[0]
+    df_rolling = reindex_w_relative_time(
+        df=df_rolling,
+    )
     st.session_state["df_rolling"] = df_rolling
 
     if use_elapsed_time:
         st.session_state["USE_ELAPSED_TIME_FOR_PLOTS"] = True
 
     df_time_map = (
-        df_raw_od_data[["timestamp_rounded", "elapsed_time"]]
+        df_raw_od_data[["timestamp_rounded", "elapsed_time_in_seconds"]]
         .drop_duplicates()
         .set_index("timestamp_rounded")
     )
-    df_time_map["elapsed_time_in_hours"] = df_time_map["elapsed_time"] / 3600.0
+    df_time_map["elapsed_time_in_hours"] = (
+        df_time_map["elapsed_time_in_seconds"] / 3600.0
+    )
     st.dataframe(df_time_map, width="content")
     st.session_state["df_time_map"] = df_time_map
 
@@ -449,13 +458,18 @@ if df_rolling is not None:
     st.header(f"Rolling median in window of {rolling_window}s using filtered OD data")
     st.write(df_rolling)
 
-    if use_elapsed_time:
+    if not use_elapsed_time:
+        view = df_rolling.copy()
         # Map the index (timestamp_rounded) to elapsed_time_in_hours
-        df_rolling = reindex_w_relative_time(
-            df=df_rolling,
-        )
+        print(st.session_state["start_time"])
+        view.index = st.session_state["start_time"] + pd.to_timedelta(
+            view.index, unit="h"
+        )  # .to_timedelta(unit="s")
+    else:
+        # trigger no copy operation, as index is already in elapsed time
+        view = df_rolling
 
-    ax = df_rolling.plot.line(style=".", ms=2)
+    ax = view.plot.line(style=".", ms=2)
     st.write(ax.get_figure())
     download_data_button_in_sidebar(
         "df_rolling",
@@ -476,8 +490,6 @@ if st.session_state.get("df_qurve_format") is None and convert:
             df.columns = piogrowth.convert_qurve.build_three_row_header(df.columns)
             df.index.name = ""
             df.columns.names = ["Time (h)", "", ""]
-            # ! replace with library function
-            df.index = (df.index - df.index[0]).total_seconds() / 3600.0
             return df
 
         qurve_data = to_qurve_format(df_wide_raw_od_data_filtered)
