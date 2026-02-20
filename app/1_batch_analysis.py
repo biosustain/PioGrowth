@@ -53,7 +53,7 @@ with view_data_module:
 
 ### Form ###############################################################################
 with st.form("Batch_processing_options", enter_to_submit=True):
-    "#### Model selection"
+    st.write("### Model selection")
     selected_model = st.selectbox(
         "See the differences between the options in the"
         " [growthcurves package](https://growthcurves.readthedocs.io)",
@@ -71,6 +71,7 @@ with st.form("Batch_processing_options", enter_to_submit=True):
         smoothing_range.s_min,
         step=1,
     )
+    st.write("#### Sliding window options:")
     n_fits_sliding_window = st.slider(
         "Number of fits used for sliding window to calculate derivatives",
         5,
@@ -86,11 +87,23 @@ with st.form("Batch_processing_options", enter_to_submit=True):
         step=3,
     )
     # ! Add tangent and threshold method options here
-    # method = st.radio(
-    #     "Select method for exponential phase detection:",
-    #     ["Tangent method", "Threshold method"],
-    #     index=0,
-    # )
+    method = st.radio(
+        "Select method for exponential phase detection (default recommended):",
+        ["default", "tangent", "threshold"],
+        help=(
+            """
+            Default picks for parametric models the threshold method and
+            for phenomenological models, the sliding window and spline method the 
+            tangent method.
+
+            In short:
+
+            - "threshold": Threshold-based method using fractions of μ_max
+            - "tangent": Tangent line method at point of maximum growth rate
+            """
+        ),
+        index=0,
+    )
 
     # if method == "Threshold method":
     #     high_percentage_threshold = st.slider(
@@ -115,12 +128,15 @@ if form_submit and not no_data_uploaded:
     # Use starttime for timestamp calculations using elapsed time
     # start_time = df_rolling.index[0] if not no_data_uploaded else None
     # run on non-log transformed data (handled by growthcurves)
+    if method == "default":
+        method = None
     stats_fit = run_model_fitting_on_df(
         df_rolling,
         model_name=selected_model,
         n_fits=n_fits_sliding_window,
         spline_s=spline_smoothing_value,
         window_points=n_window_size,
+        phase_boundary_method=method,
     )
 
     mu_max = stats_fit["mu_max"]
