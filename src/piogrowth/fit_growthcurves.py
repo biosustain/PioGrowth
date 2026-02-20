@@ -62,7 +62,6 @@ def run_model_fitting_on_df_with_peaks(
     stats_df = {}
     for col in df.columns:
         s = df[col].dropna()
-        t = s.index
         peaks_col = peaks[col]
         peak_timepoints = [s.index.min(), *peaks_col.dropna().index, s.index.max()]
         # st.write("Peak timepoints:", peak_timepoints)
@@ -85,6 +84,19 @@ def run_model_fitting_on_df_with_peaks(
             )
             stats_df[key]["segment_start"] = start_seg
             stats_df[key]["segment_end"] = end_seg
+
+            # Respect bounds of segment for exponential phase
+            if (
+                stats_df[key]["exp_phase_start"] is not None
+                and stats_df[key]["exp_phase_start"] < start_seg
+            ):
+                stats_df[key]["exp_phase_start"] = start_seg
+            if (
+                stats_df[key]["exp_phase_end"] is not None
+                and stats_df[key]["exp_phase_end"] > end_seg
+            ):
+                stats_df[key]["exp_phase_end"] = end_seg
+
             fit_end_time = time.time()
             elapsed = fit_end_time - fit_start_time
             stats_df[key]["elapsed_time"] = elapsed

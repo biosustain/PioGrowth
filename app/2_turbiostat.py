@@ -289,8 +289,6 @@ download_data_button_in_sidebar(
     label="Download data used for growth analysis",
     file_name="df_rolling_turbidostat.csv",
 )
-# ! to move
-
 
 stats_df = run_model_fitting_on_df_with_peaks(
     df_rolling,
