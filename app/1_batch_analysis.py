@@ -87,7 +87,8 @@ with st.form("Batch_processing_options", enter_to_submit=True):
         step=3,
     )
     # ! Add tangent and threshold method options here
-    method = st.radio(
+    tangent_cols = st.columns(2)
+    method = tangent_cols[0].radio(
         "Select method for exponential phase detection (default recommended):",
         ["default", "tangent", "threshold"],
         help=(
@@ -103,6 +104,13 @@ with st.form("Batch_processing_options", enter_to_submit=True):
             """
         ),
         index=0,
+    )
+    exp_frac = tangent_cols[1].slider(
+        "Define percentage of µmax considered as high for threshold method",
+        0,
+        100,
+        90,
+        step=1,
     )
 
     # if method == "Threshold method":
@@ -125,9 +133,7 @@ if not no_data_uploaded:
 ### Render after from submission    ####################################################
 if form_submit and not no_data_uploaded:
     Y_LABEL = "OD readings"
-    # Use starttime for timestamp calculations using elapsed time
-    # start_time = df_rolling.index[0] if not no_data_uploaded else None
-    # run on non-log transformed data (handled by growthcurves)
+    exp_frac = exp_frac / 100
     if method == "default":
         method = None
     stats_fit = run_model_fitting_on_df(
@@ -137,6 +143,8 @@ if form_submit and not no_data_uploaded:
         spline_s=spline_smoothing_value,
         window_points=n_window_size,
         phase_boundary_method=method,
+        exp_frac=exp_frac,
+        lag_frac=exp_frac,
     )
 
     mu_max = stats_fit["mu_max"]
@@ -144,11 +152,6 @@ if form_submit and not no_data_uploaded:
     range_exp_phase = list(
         zip(stats_fit["exp_phase_start"], stats_fit["exp_phase_end"])
     )
-
-    # will be changed to represent time mappings
-    # df_rolling should be reindexed to elapsed time for calculations and plotting
-    # with start time the original index can be restored
-    # df_rolling_view = reindex_w_relative_time(df_rolling)
 
     titles = [
         f"{col} - $\\mu$ max {mu:<.5f} at {idx:<.3f} hours"

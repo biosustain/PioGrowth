@@ -15,6 +15,8 @@ def run_model_fitting_on_df(
     spline_s=1000,
     n_fits=50,
     phase_boundary_method=None,
+    lag_frac=0.15,
+    exp_frac=0.15,
     **kwargs,
 ):
     stats_df = {}
@@ -30,6 +32,8 @@ def run_model_fitting_on_df(
             spline_s=spline_s,
             n_fits=n_fits,
             phase_boundary_method=phase_boundary_method,
+            lag_frac=lag_frac,
+            exp_frac=exp_frac,
             **kwargs,
         )
         end_time = time.time()
