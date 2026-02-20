@@ -26,7 +26,7 @@ dependencies = [
     "seaborn",
     "streamlit",
     # "growthcurves @ git+https://github.com/biosustain/growthcurves@main",
-    "growthcurves==0.6.1"
+    "growthcurves==0.6.2",
 ]
 # use requirements.txt instead of pyproject.toml for dependencies
 # https://stackoverflow.com/a/73600610/9684872
