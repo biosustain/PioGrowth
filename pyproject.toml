@@ -20,15 +20,15 @@ license = "MIT" # https://choosealicense.com/
 # # add dependencies here: (use one of the two)
 dependencies = [
     "numpy",
-    "pandas<3.0.0",
-    "croissance",
+    "pandas[excel]",
     "scipy",
     "matplotlib",
     "seaborn",
     "streamlit",
+    # "growthcurves @ git+https://github.com/biosustain/growthcurves@main",
+    "growthcurves==0.6.2"
     "scikit-learn",
     "scipy",
-    "growthcurves",
 ]
 # use requirements.txt instead of pyproject.toml for dependencies
 # https://stackoverflow.com/a/73600610/9684872
@@ -52,6 +52,8 @@ docs = [
     "sphinx-new-tab-link!=0.2.2",
     "jupytext",
     "sphinx-copybutton",
+    "pandas<3.0.0",
+    "croissance",
 ]
 # local development options
 dev = ["black[jupyter]", "ruff", "pytest", "isort", "jupytext"]
