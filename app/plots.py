@@ -101,7 +101,7 @@ def plot_growth_data_w_peaks(
         # Plot removed values in red
         peak_times = peaks[col].dropna().index
         for timepoint in peak_times:
-            ax.axvline(x=timepoint, color="red", alpha=0.5, linestyle="--")
+            ax.axvline(x=timepoint, color="grey", alpha=0.3, linestyle="--")
     ax = axes[-1]
     if is_data_index:
         date_form = DateFormatter("%Y-%m-%d %H:%M")
@@ -167,5 +167,3 @@ def plot_derivatives(
     fig = ax.get_figure()
     fig.tight_layout()
     return fig, axes
-
-
