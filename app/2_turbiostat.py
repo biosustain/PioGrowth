@@ -180,7 +180,9 @@ if st.session_state.get("show_error"):
 
 container_metadata = st.empty()
 if df_meta is not None:
+    st.subheader("Uploaded metadata of dilution events (optional)")
     with container_metadata:
+
         st.write(df_meta)
 
 ########################################################################################
@@ -197,7 +199,7 @@ if turbiostat_meta is None and df_meta is not None:
     )
 
 if turbiostat_meta is not None:
-    st.subheader("Uploaded metadata of dilution events (optional)")
+    # st.subheader("Uploaded metadata of dilution events (optional)")
     df_meta = pd.read_csv(
         turbiostat_meta, parse_dates=["timestamp_localtime"]
     ).convert_dtypes()
@@ -213,6 +215,11 @@ if turbiostat_meta is not None:
         st.info('Showing only rows with "DilutionEvent" in column "event_name".')
         df_meta = df_meta.loc[mask_dilution_events]
     st.session_state["df_meta"] = df_meta
+    df_meta["elapsed_time_in_seconds"] = (
+        df_meta["timestamp_localtime"] - start_time
+    ).dt.total_seconds()
+    df_meta["elapsed_time_in_hours"] = df_meta["elapsed_time_in_seconds"] / 3600.0
+
     # ! check that format is as expected
     with container_metadata:
         st.write(df_meta)
@@ -230,7 +237,7 @@ if df_meta is not None:
         st.stop()
     try:
         peaks = df_meta.pivot(
-            index="timestamp_rounded",
+            index="elapsed_time_in_hours",
             columns=col_reactors,
             values=col_message,
         )
@@ -301,13 +308,11 @@ stats_df = run_model_fitting_on_df_with_peaks(
     exp_frac=exp_frac,
     lag_frac=exp_frac,
 )
-st.write(stats_df)
 
 fig, axes = plot_growth_data_w_peaks(df_rolling, peaks, is_data_index=False)
 
 time_at_mu_max = stats_df["time_at_umax"]
 
-st.write(time_at_mu_max)
 axes = axes.flatten()
 for ax, _col in zip(axes, df_rolling.columns):
     s_maxima = time_at_mu_max.loc[_col]
