@@ -109,6 +109,18 @@ with st.form("Upload_data_form", clear_on_submit=False):
         ),
         value=False,
     )
+    # ! move to after smoothing is applied?
+    remove_downward_trending = filter_columns[0].checkbox(
+        label="Remove downward trending data points (negative OD changes) globally after"
+        " smoothing the data.",
+        value=False,
+        help=(
+            "This can be used to remove data points that are smaller than a previous "
+            "one. Downward trends will be removed, but the upward trend will be kept "
+            "from a local minimum."
+        ),
+        key="remove_downward_trending",
+    )
     remove_max = filter_columns[1].checkbox(
         "Remove maximum OD readings by quantile",
         value=False,
@@ -433,6 +445,16 @@ if button_pressed:
         .sort_index()
     )
     # ! check if overwriting start time has consequences
+
+    if remove_downward_trending:
+        # Remove downward trending data globally on averaged data
+        df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(
+            df_wide_raw_od_data_filtered.diff().le(0)
+        )
+        msg += (
+            "- Downward trending data points (negative OD changes) were "
+            "removed globally."
+        )
     #### switch wide data to time eplased in hours #####################################
     st.session_state["start_time"] = df_wide_raw_od_data_filtered.index[0]
     df_rolling = piogrowth.reindex_w_relative_time(
