@@ -1,8 +1,8 @@
-import growthcurves as gc
 import numpy as np
 import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
+from growthcurves_options import render_options_for_growthcurve_fitting
 
 # from names import summary_mapping
 from plots import plot_growth_data
@@ -53,66 +53,17 @@ with view_data_module:
 
 ### Form ###############################################################################
 with st.form("Batch_processing_options", enter_to_submit=True):
-    st.write("### Model selection")
-    selected_model = st.selectbox(
-        "See the differences between the options in the"
-        " [growthcurves package](https://growthcurves.readthedocs.io)",
-        gc.get_all_models(),
-        index=7,
+    # Model selection
+    (
+        selected_model,
+        spline_smoothing_value,
+        n_fits_sliding_window,
+        n_window_size,
+        phase_boundary_method,
+        exp_frac,
+    ) = render_options_for_growthcurve_fitting(
+        s_min=smoothing_range.s_min, s_max=smoothing_range.s_max
     )
-    st.session_state["selected_model"] = selected_model
-    st.write("#### Spline fitting options:")
-    spline_smoothing_value = st.slider(
-        "Smoothing of the spline fitted to OD values (zero means no smoothing). "
-        "Range suggested using scipy, see "
-        "[docs](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.make_splrep.html)",
-        1,
-        smoothing_range.s_max,
-        smoothing_range.s_min,
-        step=1,
-    )
-    st.write("#### Sliding window options:")
-    n_fits_sliding_window = st.slider(
-        "Number of fits used for sliding window to calculate derivatives",
-        5,
-        200,
-        50,
-        step=5,
-    )
-    n_window_size = st.slider(
-        "Window size for sliding window method (in hours)",
-        3,
-        1000,
-        300,
-        step=3,
-    )
-    # ! Add tangent and threshold method options here
-    tangent_cols = st.columns(2)
-    method = tangent_cols[0].radio(
-        "Select method for exponential phase detection (default recommended):",
-        ["default", "tangent", "threshold"],
-        help=(
-            """
-            Default picks for parametric models the threshold method and
-            for phenomenological models, the sliding window and spline method the 
-            tangent method.
-
-            In short:
-
-            - "threshold": Threshold-based method using fractions of μ_max
-            - "tangent": Tangent line method at point of maximum growth rate
-            """
-        ),
-        index=0,
-    )
-    exp_frac = tangent_cols[1].slider(
-        "Define percentage of µmax considered as high for threshold method",
-        0,
-        100,
-        90,
-        step=1,
-    )
-
     # if method == "Threshold method":
     #     high_percentage_threshold = st.slider(
     #         "Define percentage of µmax considered as high", 0, 100, 90, step=1
@@ -134,29 +85,18 @@ if not no_data_uploaded:
 if form_submit and not no_data_uploaded:
     Y_LABEL = "OD readings"
     exp_frac = exp_frac / 100
-    if method == "default":
+    if phase_boundary_method == "default":
         method = None
-    stats_fit = run_model_fitting_on_df(
+    stats_df = run_model_fitting_on_df(
         df_rolling,
         model_name=selected_model,
         n_fits=n_fits_sliding_window,
         spline_s=spline_smoothing_value,
         window_points=n_window_size,
-        phase_boundary_method=method,
+        phase_boundary_phase_boundary_method=phase_boundary_method,
         exp_frac=exp_frac,
         lag_frac=exp_frac,
     )
-
-    mu_max = stats_fit["mu_max"]
-    time_at_mu_max = stats_fit["time_at_umax"]
-    range_exp_phase = list(
-        zip(stats_fit["exp_phase_start"], stats_fit["exp_phase_end"])
-    )
-
-    titles = [
-        f"{col} - $\\mu$ max {mu:<.5f} at {idx:<.3f} hours"
-        for col, mu, idx in zip(df_rolling.columns, mu_max, time_at_mu_max)
-    ]
 
     msg = """
     In plots the maximum change in OD (fitted) is indicated by the red dashed lines.
@@ -176,6 +116,15 @@ if form_submit and not no_data_uploaded:
 
     # ? allow users to plot data using TimeStamps?
     # Use starttime for timestamp calculations using elapsed time
+
+    mu_max = stats_df["mu_max"]
+    time_at_mu_max = stats_df["time_at_umax"]
+    range_exp_phase = list(zip(stats_df["exp_phase_start"], stats_df["exp_phase_end"]))
+
+    titles = [
+        f"{col} - $\\mu$ max {mu:<.5f} at {idx:<.3f} hours"
+        for col, mu, idx in zip(df_rolling.columns, mu_max, time_at_mu_max)
+    ]
 
     fig, axes = plot_growth_data(
         df_rolling, titles=titles, ylabel=Y_LABEL, xlabel=xlabel
@@ -222,8 +171,8 @@ if form_submit and not no_data_uploaded:
     st.write(
         f"The start time was {start_time}. Timepoints are relative to this start time."
     )
-    st.dataframe(stats_fit, width="content")
-    st.session_state["batch_analysis_summary_df"] = stats_fit
+    st.dataframe(stats_df, width="content")
+    st.session_state["batch_analysis_summary_df"] = stats_df
     download_data_button_in_sidebar(
         "batch_analysis_summary_df",
         label="Download summary",
