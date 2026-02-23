@@ -1,7 +1,9 @@
+import itertools
 from collections import namedtuple
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_datetime64_any_dtype
 from scipy.interpolate import make_splrep, splev
 
 SmoothingRange = namedtuple("SmoothingRange", ["s_min", "s", "s_max"])
@@ -40,8 +42,9 @@ def fit_spline_and_derivatives(
         raise ValueError(
             "Not enough data points to fit a spline. Need at least 4 non-NaN values."
         )
-
-    x = (s.index - s.index[0]).total_seconds().to_numpy()
+    if not is_datetime64_any_dtype(s.index.dtype):
+        raise TypeError("Index of the input Series must be datetime type.")
+    x = (s.index - s.index[0]).total_seconds().to_numpy() / 3_600  # convert to hours
 
     bspl = make_splrep(
         x,
@@ -116,7 +119,7 @@ def fit_splines_to_segments(
     """
     peak_timepoints = [s.index.min(), *peaks.dropna().index, s.index.max()]
     res_fitted, res_derivative, res_max, res_idx_max = [], [], [], []
-    for start, end in zip(peak_timepoints, peak_timepoints[1:]):
+    for start, end in itertools.pairwise(peak_timepoints):
         s_segment = s[start:end]
         if len(s_segment) < 4:
             continue

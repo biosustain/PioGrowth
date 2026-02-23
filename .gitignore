@@ -5,3 +5,6 @@
 *.egg-info
 *.pyc
 build
+
+# playground folder
+playground/
