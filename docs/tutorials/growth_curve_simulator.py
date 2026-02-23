@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
+from scipy.signal import savgol_filter
 from sklearn.linear_model import LinearRegression
 
 from piogrowth.durations import find_max_range
@@ -154,9 +155,6 @@ def plot_simulated_growth_curve(
     return fig, ax
 
 
-from scipy.signal import savgol_filter
-
-
 def smooth(y: np.ndarray[float], window: int = 21, poly: int = 1, passes: int = 1):
     """Smooth a series with Savitzky-Golay filtering (odd window, multi-pass)."""
     n = y.size
@@ -168,11 +166,6 @@ def smooth(y: np.ndarray[float], window: int = 21, poly: int = 1, passes: int = 
     for _ in range(int(passes)):
         y = savgol_filter(y, w, p, mode="interp")
     return y
-
-
-import numpy as np
-
-series_window = df_rolling.squeeze().loc["2025-11-21 15:00":"2025-11-21 22:00"]
 
 
 def timeindex_to_hours(index: pd.DatetimeIndex):
@@ -387,18 +380,6 @@ _ = ax.legend()
 # %%
 np.linalg.cond(pcov)
 
-# %% [markdown]
-# ### Derivatives and maxima
-# does not help to find $\mu_{max}$, but could be used with first derivative as formula
-
-# %%
-from scipy.differentiate import derivative
-
-der1 = derivative(logistic_model, time_in_h, args=(1.502, 0.598, 9.978, 0.199))
-der1.df
-
-# %%
-time_in_h[der1.df.argmax()]
 
 # %% [markdown]
 # ## Prepare data for PioReactor-like analysis
@@ -463,6 +444,7 @@ _ = ax.legend(["Smoothed data: rolling median", "Smoothed data: Savitzky-Golay"]
 #   log transformed data slope (estimated with a sliding window)
 
 # %%
+series_window = df_rolling.squeeze().loc["2025-11-21 15:00":"2025-11-21 22:00"]
 
 
 # %% [markdown]
@@ -532,164 +514,6 @@ ax.legend()
 fig
 
 
-# %%
-print(f"shift in x of logistic funtion: {lag_duration}")
-max_idx - df_rolling.index[0]
-
-# %%
-center_time = df_rolling.index[0] + pd.Timedelta(hours=lag_duration)
-print(f"center of logistic curves should be: {center_time}")
-slopes_normal.squeeze().nlargest(15)
-
-# %% [markdown]
-# maximum timepoint estimation with sliding window is not perfect. small errors can lead
-# to deviations.
-#
-# Looks like the growth rate in the model and from the slopes are hard to convenve.
-
-# %% [markdown]
-# ## Exponential growth rate estimation from slopes
-# if the data would have been log-transformed, exponential growth rate would be roughly
-#
-# $$N(t) = N_0 \cdot e^{rt}$$
-#
-# $$\log_2 N(t) = \log_2 \left( N_0 \cdot e^{rt} \right)$$
-#
-# $$\log_2 N(t) = \log_2 N_0 + rt \cdot \log_2 e$$
-#
-# $$\log_2 N(t) = \log_2 N_0 + \frac{r}{\ln 2} \cdot t$$
-#
-# To recover r from the slope b, multiply by $\ln(2)\approx 0.69315$.
-#
-# which does not work for non-transformed data.
-#
-# Following the same logic for the logistic model, we get that at the inflection point
-# with maximum absolute growth rate, we can recover r from the slope b of the
-# tangent of the log-transformed data as: $ r = b \cdot 2\ln(2)$
-#
-# More explicitly, for a logistic growth model with carrying capacity $K$,
-#
-# $$N(t) = \frac{K}{1 + A e^{-rt}}, \qquad A > 0,$$
-#
-# the log-transformed population is
-#
-# $$\log_2 N(t)
-#   = \log_2\!\left(\frac{K}{1 + A e^{-rt}}\right)
-#   = \log_2 K - \log_2\!\bigl(1 + A e^{-rt}\bigr),$$
-#
-# which is not linear in $t$ because of the $\log_2(1 + A e^{-rt})$ term.
-#
-# Using the logistic differential equation
-#
-# $$\frac{dN}{dt} = r N(t)\left(1 - \frac{N(t)}{K}\right),$$
-#
-# the time derivative of the log-transformed population is
-#
-# $$\frac{d}{dt}\log_2 N(t)
-#   = \frac{1}{\ln 2}\,\frac{1}{N(t)}\,\frac{dN}{dt}
-#   = \frac{r}{\ln 2}\left(1 - \frac{N(t)}{K}\right).$$
-#
-# Denoting the local slope of the $\log_2$-transformed curve by $b(t)$, we have
-#
-# $$b(t) = \frac{r}{\ln 2}\left(1 - \frac{N(t)}{K}\right),$$
-#
-# so that
-#
-# $$r = b(t)\,\ln 2 \,\Big/ \left(1 - \frac{N(t)}{K}\right).$$
-#
-# At low densities $N(t) \ll K$ this simplifies to $b(t) \approx r / \ln 2$,
-# recovering the exponential-growth relation. At the inflection point of the logistic
-# curve, where $N(t) = K/2$ and the absolute growth rate is maximal, we get
-#
-# $$b_{\mathrm{inflection}} = \frac{r}{2\ln 2}
-#   \quad\Rightarrow\quad r = b_{\mathrm{inflection}} \cdot 2 \ln 2.$$
-#
-#
-# For the logistic growth model
-#
-# $$ N(t) = \frac{K}{1 + A e^{-rt}}, \qquad A > 0 $$
-#
-# the (non-transformed) growth rate is given by the logistic differential equation
-#
-# $$ \frac{dN}{dt} = r\,N(t)\left(1 - \frac{N(t)}{K}\right) $$
-#
-# Denoting the local slope of the original (non-log) data by
-#
-# $$ s(t) \approx \frac{dN}{dt} $$
-#
-# we can solve for the growth rate parameter $r$ at time $t$
-# if we also know $N(t)$ and $K$:
-#
-# $$ r = \frac{s(t)}{N(t)\left(1 - \frac{N(t)}{K}\right)} $$
-#
-# A convenient special case is the inflection point of the logistic curve,
-# where $N(t) = K/2$ and the absolute growth rate is maximal:
-#
-# $$ \left.\frac{dN}{dt}\right|_{\text{max}} = s_{\max} $$
-#
-# $$ s_{\max} = r\,\frac{K}{2}\left(1 - \frac{1}{2}\right) $$
-#
-# $$ s_{\max} = \frac{rK}{4} $$
-#
-# Thus, at the inflection point we obtain
-#
-# $$ r = \frac{4\,s_{\max}}{K} $$
-
-# %%
-# some code snippets to explore
-
-
-def r_from_nonlog_slope(slope: float, N: float, K: float, eps: float = 1e-12) -> float:
-    """
-    Estimate logistic growth rate r from the slope on non-log data.
-
-    Uses: r = s(t) / (N(t) * (1 - N(t)/K))
-
-    Returns np.nan if the denominator is numerically unstable.
-    """
-    K_eff = K if abs(K) >= eps else np.sign(K) * eps if K != 0 else eps
-    denom = N * (1 - N / K_eff)
-    if abs(denom) < eps:
-        return np.nan
-    return slope / denom
-
-
-def r_from_inflection_smax(smax: float, K: float, eps: float = 1e-12) -> float:
-    """
-    Estimate logistic growth rate r at the inflection point from s_max and K.
-
-    Uses: r = 4 * s_max / K
-    """
-    if abs(K) < eps:
-        return np.nan
-    return 4.0 * smax / K
-
-
-def r_from_log2_slope_general(
-    b_log2: float, N: float, K: float, eps: float = 1e-12
-) -> float:
-    """
-    Estimate r from the local slope on log2-transformed data.
-
-    From: b(t) = r/ln(2) * (1 - N(t)/K)
-    => r = b(t) * ln(2) / (1 - N/K)
-    """
-    K_eff = K if abs(K) >= eps else np.sign(K) * eps if K != 0 else eps
-    denom = 1.0 - (N / K_eff)
-    if abs(denom) < eps:
-        return np.nan
-    return b_log2 * np.log(2) / denom
-
-
-def r_from_log2_slope_at_inflection(b_log2: float) -> float:
-    """
-    Estimate r at the inflection point from log2 slope.
-
-    At inflection: b = r / (2 ln 2) => r = b * 2 ln 2
-    """
-    return b_log2 * 2.0 * np.log(2)
-
-
 # %% [markdown]
 # So, using the original (non-transformed) data, one can recover $r$ from the slope
 # **if** the carrying capacity $K$ and the current value $N(t)$ (or at least that
@@ -704,7 +528,8 @@ print(
     f"Non-transformed est. r with est. K:  {slopes_normal.max() * 4 / (2 * K_half):.3f}"
 )
 print(
-    f"Non-transformed est. r with true K:  {slopes_normal.max() * 4 / (max_population):.3f}"
+    "Non-transformed est. r with true K:  "
+    f"{slopes_normal.max() * 4 / (max_population):.3f}"
 )
 print(f"Log2-transformed slope: {slopes_log2.max():.3f}")
 print(f"Log2-transformed est. r: {slopes_log2.max() *2 * np.log(2):.3f}")
@@ -719,7 +544,7 @@ print(f"Log2-transformed est. r: {_v * 2 * np.log(2):.3f}")
 
 # %% [markdown]
 # ## Use spline to find the maxium growth
-# -
+# - just to highlight this approach
 
 # %% [markdown]
 # Fit spline to the smoothed data and calculate derivatives
@@ -954,43 +779,24 @@ _ = s_normal_in_h.plot(
 )
 
 # %%
-time = s_normal_in_h.index.values
-fit_sliding_window = gc.non_parametric.fit_non_parametric(
-    t=time,
-    y=s_normal_in_h.values,
-    method="sliding_window",
-    window_points=51,
+t = s_normal_in_h.index.values
+gc.compare_models(
+    t,
+    s_normal_in_h.values,
+    models=["logistic", "gompertz", "richard"],
+    plot=True,
 )
 
-stats_sliding_window = gc.inference.extract_stats(
-    fit_sliding_window,
-    t=time,
-    y=s_normal_in_h.values,
-    phase_boundary_method="tangent",
+# %%
+fit_stats, growth_stats = gc.inference.compare_methods(
+    t=t,
+    N=s_normal_in_h.values,
+    model="all",
+    spline_s=500,
+    window_points=150,
 )
-
-
-# %%
-def print_formatted_fit(fit_result):
-    print(f"Fitted model: {fit_result['model_type']}")
-    print("Fitted parameters:")
-    for param, value in fit_result["params"].items():
-        print(f" - {param:>14}: {value:7.4f}")
-
-
-def print_formatted_stats(stats):
-    print("Extracted growth statistics:")
-    for stat, value in stats.items():
-        if value is None:
-            value = np.nan
-        if isinstance(value, str):
-            print(f" - {stat:>22}: {value}")
-        else:
-            print(f" - {stat:>22}: {value:7.4f}")
-
-
-print_formatted_fit(fit_sliding_window)
-print()
-print_formatted_stats(stats_sliding_window)
+growth_stats = pd.DataFrame(growth_stats).T
+growth_stats
 
 # %%
+growth_stats
