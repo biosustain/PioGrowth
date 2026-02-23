@@ -782,7 +782,7 @@ _ = s_normal_in_h.plot(
 fit_stats, growth_stats = gc.inference.compare_methods(
     t=s_normal_in_h.index.values,
     N=s_normal_in_h.values,
-    model="all",
+    model_family="all",
     spline_s=500,
     window_points=150,
 )
