@@ -3,18 +3,11 @@ import functools
 import pandas as pd
 import streamlit as st
 from buttons import create_download_button, download_data_button_in_sidebar
-from names import summary_mapping
-from plots import (
-    create_figure_bytes_to_download,
-    plot_derivatives,
-    plot_growth_data,
-    plot_growth_data_w_peaks,
-    reindex_w_relative_time,
-)
+from growthcurves_options import render_options_for_growthcurve_fitting
+from plots import create_figure_bytes_to_download, plot_growth_data_w_peaks
 from ui_components import show_warning_to_upload_data
 
-from piogrowth.durations import find_max_range
-from piogrowth.fit_spline import fit_growth_data_w_peaks
+from piogrowth.fit_growthcurves import run_model_fitting_on_df_with_peaks
 from piogrowth.turbistat import detect_peaks
 
 
@@ -44,6 +37,7 @@ use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
 df_time_map = st.session_state.get("df_time_map")
 no_data_uploaded = st.session_state.get("df_rolling") is None
 df_rolling = st.session_state.get("df_rolling")
+start_time = st.session_state.get("start_time")
 df_meta = st.session_state.get("df_meta")
 round_time = st.session_state.get("round_time", 60)
 
@@ -53,8 +47,6 @@ DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (h
 # UI
 
 st.title("Growth Analysis of turbidostat mode")
-st.error("Not updated to use growthcurves package yet, so rather do not use it.")
-
 if no_data_uploaded:
     show_warning_to_upload_data()
     st.stop()
@@ -68,8 +60,18 @@ st.info(
     "Data is plotted using measured timepoints (in seconds), and the modeling is done "
     "using elapsed seconds since the initial timepoint."
 )
-### Form
+
+### Form ###############################################################################
 with st.form(key="turbidostat_form"):
+    # Model selection
+    (
+        selected_model,
+        spline_smoothing_value,
+        n_fits_sliding_window,
+        n_window_size,
+        phase_boundary_method,
+        exp_frac,
+    ) = render_options_for_growthcurve_fitting(s_min=3, s_max=1000)
     turbiostat_meta = st.file_uploader(
         (
             "Upload metadata of dilution events. Optional, but recommended. "
@@ -178,7 +180,9 @@ if st.session_state.get("show_error"):
 
 container_metadata = st.empty()
 if df_meta is not None:
+    st.subheader("Uploaded metadata of dilution events (optional)")
     with container_metadata:
+
         st.write(df_meta)
 
 ########################################################################################
@@ -195,7 +199,7 @@ if turbiostat_meta is None and df_meta is not None:
     )
 
 if turbiostat_meta is not None:
-    st.subheader("Uploaded metadata of dilution events (optional)")
+    # st.subheader("Uploaded metadata of dilution events (optional)")
     df_meta = pd.read_csv(
         turbiostat_meta, parse_dates=["timestamp_localtime"]
     ).convert_dtypes()
@@ -211,6 +215,11 @@ if turbiostat_meta is not None:
         st.info('Showing only rows with "DilutionEvent" in column "event_name".')
         df_meta = df_meta.loc[mask_dilution_events]
     st.session_state["df_meta"] = df_meta
+    df_meta["elapsed_time_in_seconds"] = (
+        df_meta["timestamp_localtime"] - start_time
+    ).dt.total_seconds()
+    df_meta["elapsed_time_in_hours"] = df_meta["elapsed_time_in_seconds"] / 3600.0
+
     # ! check that format is as expected
     with container_metadata:
         st.write(df_meta)
@@ -228,7 +237,7 @@ if df_meta is not None:
         st.stop()
     try:
         peaks = df_meta.pivot(
-            index="timestamp_rounded",
+            index="elapsed_time_in_hours",
             columns=col_reactors,
             values=col_message,
         )
@@ -258,6 +267,12 @@ else:
     )
     peaks = df_rolling.apply(_detect_peaks)
     st.dataframe(peaks)
+    st.session_state["peaks"] = peaks
+    download_data_button_in_sidebar(
+        "peaks",
+        label="Download peaks in format used for growth analysis",
+        file_name="peaks.csv",
+    )
 
 if remove_downward_trending:
     # Remove downward trending data globally on averaged data
@@ -266,136 +281,70 @@ if remove_downward_trending:
         "Downward trending data points (negative OD changes) were removed globally."
     )
 
-# views for plotting to allow for elapsed time option
-df_rolling_view = df_rolling
-peaks_view = peaks.copy()  # ! pointer only works if passed to a function
-xlabel = DEFAULT_XLABEL_TPS
-if use_elapsed_time:
-    # reindex all data to elapsed time for plotting
-    xlabel = DEFAULT_XLABEL_REL
-    df_rolling_view = reindex_w_relative_time(df_rolling)
-    peaks_view = reindex_w_relative_time(peaks)
-    # alternative for reindex_w_relative_time
-fig, axes = plot_growth_data_w_peaks(
-    df_rolling_view, peaks_view, is_data_index=not use_elapsed_time
-)
-st.pyplot(fig)
+if phase_boundary_method == "default":
+    phase_boundary_method = None
 
-with st.sidebar:
-    create_download_button(
-        label="Download figure for growth data with peaks as PDF",
-        data=create_figure_bytes_to_download(fig, fmt="pdf"),
-        file_name="growth_data_with_peaks.pdf",
-        disabled=False,
-        mime="application/pdf",
-    )
+# views for plotting to allow for elapsed time option
+xlabel = DEFAULT_XLABEL_REL
+
 
 # ? should the one with negative values removed stored globally?
 st.session_state["df_rolling_turbidostat"] = df_rolling
+
 download_data_button_in_sidebar(
     "df_rolling_turbidostat",
     label="Download data used for growth analysis",
     file_name="df_rolling_turbidostat.csv",
 )
-splines, df_first_derivative, d_maxima = fit_growth_data_w_peaks(
-    df_rolling, peaks, smoothing_factor=smoothing_factor
-)
-st.session_state["df_splines_turbidostat"] = splines
-st.session_state["df_derivatives_turbidostat"] = df_first_derivative
-download_data_button_in_sidebar(
-    "df_splines_turbidostat",
-    label="Download data of fitted splines",
-    file_name="df_splines_turbidostat.csv",
-)
-download_data_button_in_sidebar(
-    "df_derivatives_turbidostat",
-    label="Download data of derivatives",
-    file_name="df_derivatives_turbidostat.csv",
+
+stats_df = run_model_fitting_on_df_with_peaks(
+    df_rolling,
+    peaks,
+    model_name=selected_model,
+    n_fits=n_fits_sliding_window,
+    spline_s=spline_smoothing_value,
+    window_points=n_window_size,
+    phase_boundary_method=phase_boundary_method,
+    exp_frac=exp_frac,
+    lag_frac=exp_frac,
 )
 
-prop_high = high_percentage_threshold / 100
-cutoffs = df_first_derivative.max() * prop_high
-in_high_growth = df_first_derivative.ge(cutoffs, axis=1)
-# ToDo: do this for each segment between peaks
-max_time_range = in_high_growth.apply(find_max_range, axis=0).T.convert_dtypes()
-# st.write(max_time_range)
+fig, axes = plot_growth_data_w_peaks(df_rolling, peaks, is_data_index=False)
 
-splines_view = splines
-d_maxima_view = pd.DataFrame(d_maxima)
-if use_elapsed_time:
-    # reindex all data to elapsed time for plotting
-    splines_view = reindex_w_relative_time(splines)
-    d_maxima_view = reindex_w_relative_time(d_maxima_view)
+time_at_mu_max = stats_df["time_at_umax"]
 
-fig, axes = plot_growth_data(
-    splines_view,
-    xlabel=xlabel,
-)
 axes = axes.flatten()
-for ax, _col in zip(axes, d_maxima_view.columns):
-    s_maxima = d_maxima_view[_col].dropna()
-    for x in s_maxima.index:
+for ax, _col in zip(axes, df_rolling.columns):
+    s_maxima = time_at_mu_max.loc[_col]
+    for x in s_maxima:
         ax.axvline(x=x, color="red", linestyle="--")
-for ax, col in zip(axes, df_first_derivative.columns):
-    row = max_time_range.loc[col]
-    _start = row.start
-    _end = row.end
-    if use_elapsed_time:
-        _start = (row.start - st.session_state["start_time"]).total_seconds() / 3600
-        _end = (row.end - st.session_state["start_time"]).total_seconds() / 3600
-    if row.is_continues:
-        # only plot span if the time range is continuous (no jumps)
+for ax, col in zip(axes, df_rolling.columns):
+    sub_df = stats_df.loc[col]
+    range_exp_phase = list(zip(sub_df["exp_phase_start"], sub_df["exp_phase_end"]))
+    for _start, _end in range_exp_phase:
         ax.axvspan(_start, _end, color="gray", alpha=0.2)
-st.subheader("Fitted splines per segment")
 st.pyplot(fig)
 
 with st.sidebar:
     create_download_button(
         label="Download figure for fitted splines as PDF",
         data=create_figure_bytes_to_download(fig, fmt="pdf"),
-        file_name="fitted_splines.pdf",
+        file_name="data_with_peaks_and_mu_max.pdf",
         disabled=False,
         mime="application/pdf",
     )
 
-st.subheader("First Derivative of fitted splines per segment")
-
-df_first_derivative_view = df_first_derivative
-if use_elapsed_time:
-    # reindex all data to elapsed time for plotting
-    df_first_derivative_view = reindex_w_relative_time(df_first_derivative)
-
-fig, axes = plot_derivatives(df_first_derivative_view, xlabel=xlabel)
-st.pyplot(fig)
-
-with st.sidebar:
-    create_download_button(
-        label="Download figure for fitted derivatives as PDF",
-        data=create_figure_bytes_to_download(fig, fmt="pdf"),
-        file_name="fitted_derivatives.pdf",
-        disabled=False,
-        mime="application/pdf",
-    )
 
 # Summary table
+### Summary Table ##################################################################
 st.subheader("Summary of high growth periods")
-
-# Sidebar Download buttons
-df_summary = create_summary(d_maxima)
-# ! to fix for automatic peak picking
-try:
-    df_summary["OD_median"] = get_values_from_df(df_rolling, df_summary.index)
-    df_summary["OD_spline"] = get_values_from_df(splines, df_summary.index)
-    df_summary["OD_derivative"] = get_values_from_df(
-        df_first_derivative, df_summary.index
-    )
-except ValueError as e:
-    st.error(f"Error occurred while creating summary - ValueError: {e}")
-df_summary = df_summary.swaplevel(0, 1).sort_index().rename(columns=summary_mapping)
-st.dataframe(df_summary)
-st.session_state["df_summary"] = df_summary
+st.write(
+    f"The start time was {start_time}. Timepoints are relative to this start time."
+)
+st.dataframe(stats_df, width="content")
+st.session_state["batch_analysis_summary_df"] = stats_df
 download_data_button_in_sidebar(
-    "df_summary",
-    label="Download summary of high growth periods",
-    file_name="summary_turbidostat_periods.csv",
+    "batch_analysis_summary_df",
+    label="Download summary",
+    file_name="batch_analysis_summary_df.csv",
 )

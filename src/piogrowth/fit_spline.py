@@ -1,3 +1,4 @@
+import itertools
 from collections import namedtuple
 
 import numpy as np
@@ -118,7 +119,7 @@ def fit_splines_to_segments(
     """
     peak_timepoints = [s.index.min(), *peaks.dropna().index, s.index.max()]
     res_fitted, res_derivative, res_max, res_idx_max = [], [], [], []
-    for start, end in zip(peak_timepoints, peak_timepoints[1:]):
+    for start, end in itertools.pairwise(peak_timepoints):
         s_segment = s[start:end]
         if len(s_segment) < 4:
             continue

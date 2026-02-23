@@ -15,13 +15,16 @@
 
 ### This app
 
-In this app we use cubic splines using scipy's
-[`make_splrep` function](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.make_splrep.html#scipy.interpolate.make_splrep)
-on the original, interpolated data.
+In this app we use the [growthcurves package](https://growthcurves.readthedocs.io/) we
+developed, which is highly inspired by the review article on fitting growth curves:
+
+> Ghenu, A.-H., Marrec, L. & Bank, C. Challenges and pitfalls of inferring microbial
+> growth rates from lab cultures. Front. Ecol. Evol. 11, 1313500 (2024).
+> https://doi.org/10.3389/fevo.2023.1313500
+
+We allow the application of parametric, phenomological and non-parametric models, on
+the filtered and smoothed data, with the option applied on the upload page:
 
 - the rolling median was used to pre-smooth the data before fitting the splines
-- the smoothing factor is based on the total number of measurements in the app,
-  the minimum is used from the suggested interval by scipy
-  - maybe the rolling median should only be used for missing values in the filtered
-    data?
-- per default we do not apply log transformation.
+- growthcurves fits a parametric model to the data or fits equations on the
+  log transformed data.

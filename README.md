@@ -14,7 +14,11 @@ The code translated to Python was based on the original R code from the Shiny ap
 ## Install and start app
 
 In a new environment you can install the app using the app's
+<<<<<<< add_docs
 [`requirements.txt`](requirements.txt)
+=======
+[`requirements.txt`](app/requirements.txt)
+>>>>>>> dev
 
 ```bash
 pip install -r app/requirements.txt
