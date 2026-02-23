@@ -25,6 +25,7 @@ def render_about():
 
 # Navigation
 raw_data = st.Page("0_upload_data.py", title="Upload Data")
+calibrate_data = st.Page("0_calibrate.py", title="Calibrate to OD measurments")
 batch_analysis = st.Page("1_batch_analysis.py", title="Analyse growth experiment")
 turbistat_modus = st.Page(
     "2_turbiostat.py", title="Analyse growth experiment in turbidostat mode"
@@ -41,10 +42,11 @@ st.sidebar.write("Buttons activate if associated data is available:")
 
 # build multi-page app
 pg = st.navigation(
-    [raw_data, batch_analysis, turbistat_modus, about_page], position="top"
+    [raw_data, calibrate_data, batch_analysis, turbistat_modus, about_page], position="top"
 )
 
 red_buttons()
 green_gradient()
 green_navbar()
+
 pg.run()
