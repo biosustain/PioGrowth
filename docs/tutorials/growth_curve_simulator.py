@@ -790,4 +790,17 @@ growth_stats = pd.DataFrame(growth_stats).T
 growth_stats
 
 # %%
-growth_stats
+growth_stats[
+    [
+        "time_at_umax",
+        "od_at_umax",
+        "mu_max",
+        "intrinsic_growth_rate",
+        "doubling_time",
+        "exp_phase_start",
+        "exp_phase_end",
+        "model_name",
+        "max_od",
+        "N0",
+    ]
+]
