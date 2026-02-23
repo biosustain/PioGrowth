@@ -779,15 +779,6 @@ _ = s_normal_in_h.plot(
 )
 
 # %%
-t = s_normal_in_h.index.values
-gc.compare_models(
-    t,
-    s_normal_in_h.values,
-    models=["logistic", "gompertz", "richard"],
-    plot=True,
-)
-
-# %%
 fit_stats, growth_stats = gc.inference.compare_methods(
     t=t,
     N=s_normal_in_h.values,
