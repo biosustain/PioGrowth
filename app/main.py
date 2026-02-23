@@ -2,6 +2,7 @@ import streamlit as st
 from ui_components import render_markdown
 
 import piogrowth
+from piogrowth.styling import green_gradient, green_navbar, red_buttons
 
 # General configurations
 st.set_page_config(page_title="PioGrowth", layout="wide")
@@ -38,8 +39,14 @@ st.sidebar.write(f"version: {piogrowth.__version__}")
 st.sidebar.write("Buttons activate if associated data is available:")
 # st.sidebar.write(st.session_state)
 
+
 # build multi-page app
 pg = st.navigation(
-    [raw_data, calibrate_data, batch_analysis, turbistat_modus, about_page]
+    [raw_data, calibrate_data, batch_analysis, turbistat_modus, about_page], position="top"
 )
+
+red_buttons()
+green_gradient()
+green_navbar()
+
 pg.run()
