@@ -52,6 +52,7 @@ docs = [
     "sphinx-copybutton",
     "pandas<3.0.0",
     "croissance",
+    "scikit-learn",
 ]
 # local development options
 dev = ["black[jupyter]", "ruff", "pytest", "isort", "jupytext"]

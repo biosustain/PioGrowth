@@ -34,7 +34,10 @@ from scipy.optimize import curve_fit
 from sklearn.linear_model import LinearRegression
 
 from piogrowth.durations import find_max_range
-from piogrowth.fit_spline import fit_spline_and_derivatives_one_batch, get_smoothing_range
+from piogrowth.fit_spline import (
+    fit_spline_and_derivatives_one_batch,
+    get_smoothing_range,
+)
 
 
 # %%
@@ -167,8 +170,95 @@ def smooth(y: np.ndarray[float], window: int = 21, poly: int = 1, passes: int = 
     return y
 
 
+import numpy as np
+
+series_window = df_rolling.squeeze().loc["2025-11-21 15:00":"2025-11-21 22:00"]
+
+
+def timeindex_to_hours(index: pd.DatetimeIndex):
+    """
+    Convert a pandas DatetimeIndex to elapsed hours since the first timestamp.
+
+    Parameters
+    ----------
+    index : pd.DatetimeIndex
+        The DatetimeIndex to convert.
+
+    Returns
+    -------
+    numpy.ndarray
+        Array of elapsed hours (float) since the first timestamp in the index,
+        reshaped as a column vector.
+    """
+    x = (index - index[0]).total_seconds().to_numpy() / 3600
+    return
+
+
+def fit_linear_growth(s: pd.Series):
+    """
+    Fit a linear regression model to a time series window.
+
+    Parameters
+    ----------
+    series_window : pd.Series
+        Time-indexed series of population measurements.
+
+    Returns
+    -------
+    linreg : LinearRegression
+        Fitted linear regression model.
+    """
+    X = (s.index - s.index[0]).total_seconds().to_numpy().reshape(-1, 1) / 3600  # hours
+    y = s.values.reshape(-1, 1)
+    linreg = LinearRegression().fit(X, y)
+    return linreg
+
+
+def get_slope(s: pd.Series):
+    linreg_fitted = fit_linear_growth(s)
+    return linreg_fitted.coef_[0][0]
+
+
+def get_tangent(s, max_idx, max_slope, window_hours=1):
+    """
+    Compute the tangent line around the maximum slope point in log2-transformed data.
+
+    Parameters
+    ----------
+    s : pd.Series
+        Data with datetime index.
+    max_idx : pd.Timestamp
+        Index of the maximum slope point.
+    s_log2 : pd.DataFrame or pd.Series
+        Log2-transformed smoothed data.
+    max_slope : float
+        Maximum slope value.
+    window_hours : float, optional
+        Window size in hours around max_idx to show the tangent (default: 1).
+
+    Returns
+    -------
+    tangent : np.ndarray
+        Array with tangent values (NaN outside the window).
+    """
+    x = (s.index - s.index[0]).total_seconds() / 3600  # hours
+    x0 = (max_idx - s.index[0]).total_seconds() / 3600
+    y0 = (
+        s.loc[max_idx].values[0]
+        if hasattr(s.loc[max_idx], "values")
+        else s.loc[max_idx]
+    )
+
+    # Mask for ±window_hours around max_idx
+    mask = (x >= x0 - window_hours) & (x <= x0 + window_hours)
+    tangent = np.full_like(x, np.nan, dtype=float)
+    tangent[mask] = max_slope * (x[mask] - x0) + y0
+    return tangent
+
+
 # %% [markdown]
 # Model equations
+# - [ ] use the ones in growthcurves package
 
 
 # %%
@@ -373,93 +463,6 @@ _ = ax.legend(["Smoothed data: rolling median", "Smoothed data: Savitzky-Golay"]
 #   log transformed data slope (estimated with a sliding window)
 
 # %%
-import numpy as np
-
-# Fit linear model to original series
-from sklearn.linear_model import LinearRegression
-
-series_window = df_rolling.squeeze().loc["2025-11-21 15:00":"2025-11-21 22:00"]
-
-
-def timeindex_to_hours(index: pd.DatetimeIndex):
-    """
-    Convert a pandas DatetimeIndex to elapsed hours since the first timestamp.
-
-    Parameters
-    ----------
-    index : pd.DatetimeIndex
-        The DatetimeIndex to convert.
-
-    Returns
-    -------
-    numpy.ndarray
-        Array of elapsed hours (float) since the first timestamp in the index,
-        reshaped as a column vector.
-    """
-    x = (index - index[0]).total_seconds().to_numpy() / 3600
-    return
-
-
-def fit_linear_growth(s: pd.Series):
-    """
-    Fit a linear regression model to a time series window.
-
-    Parameters
-    ----------
-    series_window : pd.Series
-        Time-indexed series of population measurements.
-
-    Returns
-    -------
-    linreg : LinearRegression
-        Fitted linear regression model.
-    """
-    X = (s.index - s.index[0]).total_seconds().to_numpy().reshape(-1, 1) / 3600  # hours
-    y = s.values.reshape(-1, 1)
-    linreg = LinearRegression().fit(X, y)
-    return linreg
-
-
-def get_slope(s: pd.Series):
-    linreg_fitted = fit_linear_growth(s)
-    return linreg_fitted.coef_[0][0]
-
-
-def get_tangent(s, max_idx, max_slope, window_hours=1):
-    """
-    Compute the tangent line around the maximum slope point in log2-transformed data.
-
-    Parameters
-    ----------
-    s : pd.Series
-        Data with datetime index.
-    max_idx : pd.Timestamp
-        Index of the maximum slope point.
-    s_log2 : pd.DataFrame or pd.Series
-        Log2-transformed smoothed data.
-    max_slope : float
-        Maximum slope value.
-    window_hours : float, optional
-        Window size in hours around max_idx to show the tangent (default: 1).
-
-    Returns
-    -------
-    tangent : np.ndarray
-        Array with tangent values (NaN outside the window).
-    """
-    x = (s.index - s.index[0]).total_seconds() / 3600  # hours
-    x0 = (max_idx - s.index[0]).total_seconds() / 3600
-    y0 = (
-        s.loc[max_idx].values[0]
-        if hasattr(s.loc[max_idx], "values")
-        else s.loc[max_idx]
-    )
-
-    # Mask for ±window_hours around max_idx
-    mask = (x >= x0 - window_hours) & (x <= x0 + window_hours)
-    tangent = np.full_like(x, np.nan, dtype=float)
-    tangent[mask] = max_slope * (x[mask] - x0) + y0
-    return tangent
 
 
 # %% [markdown]
