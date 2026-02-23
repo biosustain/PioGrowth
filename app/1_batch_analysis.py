@@ -1,11 +1,11 @@
-import growthcurves as gc
 import numpy as np
 import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
+from growthcurves_options import render_options_for_growthcurve_fitting
 
 # from names import summary_mapping
-from plots import plot_growth_data, reindex_w_relative_time
+from plots import plot_growth_data
 from ui_components import render_markdown, show_warning_to_upload_data
 
 # from piogrowth.durations import find_max_range
@@ -32,6 +32,7 @@ use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
 df_time_map = st.session_state.get("df_time_map")
 no_data_uploaded = st.session_state.get("df_rolling") is None
 df_rolling = st.session_state.get("df_rolling")
+start_time = st.session_state.get("start_time")
 
 DEFAULT_XLABEL_TPS = st.session_state.get("DEFAULT_XLABEL_TPS", "Timepoints (rounded)")
 DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (hours)")
@@ -52,31 +53,17 @@ with view_data_module:
 
 ### Form ###############################################################################
 with st.form("Batch_processing_options", enter_to_submit=True):
-    "#### Model selection"
-    selected_model = st.selectbox(
-        "See the differences between the options in the"
-        " [growthcurves package](https://growthcurves.readthedocs.io)",
-        gc.get_all_models(),
-        index=7,
+    # Model selection
+    (
+        selected_model,
+        spline_smoothing_value,
+        n_fits_sliding_window,
+        n_window_size,
+        phase_boundary_method,
+        exp_frac,
+    ) = render_options_for_growthcurve_fitting(
+        s_min=smoothing_range.s_min, s_max=smoothing_range.s_max
     )
-    st.session_state["selected_model"] = selected_model
-    st.write("#### Spline fitting options:")
-    spline_smoothing_value = st.slider(
-        "Smoothing of the spline fitted to OD values (zero means no smoothing). "
-        "Range suggested using scipy, see "
-        "[docs](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.make_splrep.html)",
-        1,
-        smoothing_range.s_max,
-        smoothing_range.s_min,
-        step=1,
-    )
-    # ! Add tangent and threshold method options here
-    # method = st.radio(
-    #     "Select method for exponential phase detection:",
-    #     ["Tangent method", "Threshold method"],
-    #     index=0,
-    # )
-
     # if method == "Threshold method":
     #     high_percentage_threshold = st.slider(
     #         "Define percentage of µmax considered as high", 0, 100, 90, step=1
@@ -97,28 +84,21 @@ if not no_data_uploaded:
 ### Render after from submission    ####################################################
 if form_submit and not no_data_uploaded:
     Y_LABEL = "OD readings"
-    # Use starttime for timestamp calculations using elapsed time
-    start_time = df_rolling.index[0] if not no_data_uploaded else None
-    # run on non-log transformed data (handled by growthcurves)
-    stats_fit = run_model_fitting_on_df(df_rolling, model_name=selected_model)
-
-    mu_max = stats_fit["mu_max"]
-    time_at_mu_max = stats_fit["time_at_umax"]
-    range_exp_phase = list(
-        zip(stats_fit["exp_phase_start"], stats_fit["exp_phase_end"])
+    exp_frac = exp_frac / 100
+    if phase_boundary_method == "default":
+        method = None
+    stats_df = run_model_fitting_on_df(
+        df_rolling,
+        model_name=selected_model,
+        n_fits=n_fits_sliding_window,
+        spline_s=spline_smoothing_value,
+        window_points=n_window_size,
+        phase_boundary_phase_boundary_method=phase_boundary_method,
+        exp_frac=exp_frac,
+        lag_frac=exp_frac,
     )
 
-    # will be changed to represent time mappings
-    # df_rolling should be reindexed to elapsed time for calculations and plotting
-    # with start time the original index can be restored
-    df_rolling_view = reindex_w_relative_time(df_rolling)
-
-    titles = [
-        f"{col} - $\\mu$ max {mu:<.5f} at {idx:<.3f} hours"
-        for col, mu, idx in zip(df_rolling.columns, mu_max, time_at_mu_max)
-    ]
-
-    msg = f"""
+    msg = """
     In plots the maximum change in OD (fitted) is indicated by the red dashed lines.
     The maximum change in OD (fitted) and it's timepoint is mentioned in the title of
     each plot. The selected range within the **gray shaded area** indicates the time
@@ -134,8 +114,20 @@ if form_submit and not no_data_uploaded:
 
     xlabel = DEFAULT_XLABEL_REL + f" since start at {start_time}"
 
+    # ? allow users to plot data using TimeStamps?
+    # Use starttime for timestamp calculations using elapsed time
+
+    mu_max = stats_df["mu_max"]
+    time_at_mu_max = stats_df["time_at_umax"]
+    range_exp_phase = list(zip(stats_df["exp_phase_start"], stats_df["exp_phase_end"]))
+
+    titles = [
+        f"{col} - $\\mu$ max {mu:<.5f} at {idx:<.3f} hours"
+        for col, mu, idx in zip(df_rolling.columns, mu_max, time_at_mu_max)
+    ]
+
     fig, axes = plot_growth_data(
-        df_rolling_view, titles=titles, ylabel=Y_LABEL, xlabel=xlabel
+        df_rolling, titles=titles, ylabel=Y_LABEL, xlabel=xlabel
     )
     axes = axes.flatten()
     for ax, x in zip(axes, time_at_mu_max):
@@ -160,7 +152,7 @@ if form_submit and not no_data_uploaded:
     ## Plot on log scale
     st.title("Show data on log scale")
     fig_log, axes = plot_growth_data(
-        np.log((df_rolling_view + 0.01)),
+        np.log((df_rolling + 0.01)),
         titles=titles,
         ylabel="ln(OD readings)",
         xlabel=xlabel,
@@ -179,8 +171,8 @@ if form_submit and not no_data_uploaded:
     st.write(
         f"The start time was {start_time}. Timepoints are relative to this start time."
     )
-    st.dataframe(stats_fit, width="content")
-    st.session_state["batch_analysis_summary_df"] = stats_fit
+    st.dataframe(stats_df, width="content")
+    st.session_state["batch_analysis_summary_df"] = stats_df
     download_data_button_in_sidebar(
         "batch_analysis_summary_df",
         label="Download summary",

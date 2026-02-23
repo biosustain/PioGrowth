@@ -101,7 +101,7 @@ def plot_growth_data_w_peaks(
         # Plot removed values in red
         peak_times = peaks[col].dropna().index
         for timepoint in peak_times:
-            ax.axvline(x=timepoint, color="red", alpha=0.5, linestyle="--")
+            ax.axvline(x=timepoint, color="grey", alpha=0.3, linestyle="--")
     ax = axes[-1]
     if is_data_index:
         date_form = DateFormatter("%Y-%m-%d %H:%M")
@@ -167,23 +167,3 @@ def plot_derivatives(
     fig = ax.get_figure()
     fig.tight_layout()
     return fig, axes
-
-
-def reindex_w_relative_time(
-    df: pd.DataFrame,
-    start_time: pd.Timestamp = None,
-    new_index_name: str = "Elapsed time (hours)",
-) -> pd.DataFrame:
-    """Reindex the DataFrame to use relative time as the index."""
-    df = df.copy()  # needed as reindex as DataFrame is a view
-    df.index = convert_to_elapsed_hours(df.index, start_time=start_time or df.index[0])
-    df.index.name = new_index_name
-    return df
-
-
-def convert_to_elapsed_hours(
-    timestamp: pd.Timestamp, start_time: pd.Timestamp
-) -> float:
-    """Convert a timestamp to elapsed hours since start_time."""
-    ret = (timestamp - start_time).total_seconds() / 3_600
-    return ret
