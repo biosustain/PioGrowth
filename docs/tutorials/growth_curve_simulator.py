@@ -750,7 +750,7 @@ ax.legend()
 # [croissance](https://pypi.org/project/croissance/)
 
 # %%
-# croissance.process_curve?
+# ?croissance.process_curve
 
 # %%
 s_normal_in_h = (
@@ -780,7 +780,7 @@ _ = s_normal_in_h.plot(
 
 # %%
 fit_stats, growth_stats = gc.inference.compare_methods(
-    t=t,
+    t=s_normal_in_h.index.values,
     N=s_normal_in_h.values,
     model="all",
     spline_s=500,
