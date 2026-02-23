@@ -44,7 +44,7 @@ def fit_spline_and_derivatives(
         )
     if not is_datetime64_any_dtype(s.index.dtype):
         raise TypeError("Index of the input Series must be datetime type.")
-    x = (s.index - s.index[0]).total_seconds().to_numpy()
+    x = (s.index - s.index[0]).total_seconds().to_numpy() / 3_600  # convert to hours
 
     bspl = make_splrep(
         x,
