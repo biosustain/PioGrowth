@@ -1,31 +1,31 @@
 # %% [markdown]
 # # Estimating growth rates
 # Outline approach used in the app to estimate the growth rate of
-# biological growth gurves with lag phase.
+# biological growth curves with lag phase using
+# [growthcurves package](https://github.com/biosustain/growthcurves)
 #
-# Without lag-phase and ranging from zero to one, growth curves can be formulated as:
+# Here we compare different packages, explain some differences between parameters
+# using a simulated logistic growth curve with noise.
 #
-# Fitting common growth models using a squared-error loss function
-# (using `scipy`)
-# - `t_0` is the shift of the center of the modeled curve (should correspond to
-#    maximum growth)
-# - `r` is the rate in the exponential, which gives the rate (not sure if this can
-#    always be used to model exponential growth)
-# - `a` is the saturation maximum in the growth curve
+# - parametric model based fitting of noisy data
+# - linear regression on non log-transformed data
+# - linear regression on log-transformed data
+# - spline fitting and derivatives
+# - croissance exponential model fitting
+# - growthcurves package fitting, comparing all methods
 #
-# Finding the maximum growth using splines
-# - probably less optimal, but maximum growth range seems to work.
-# - slope of sliding window on log-transformed data should give the growth rate
-#
-# The $\mu_{max}$ growth is the minima of the second derivative.
+# The $\mu_{max}$ growth is the maximum of the second derivative or the maximum of the
+# log transformed data slope (if estimated with a sliding window).
 
 # %% [markdown]
 # ## Setup
+# Imports
 
 # %%
 from typing import Iterable, NamedTuple
 
 import croissance
+import croissance.figures.plot
 import growthcurves as gc
 import matplotlib.pyplot as plt
 import numpy as np
@@ -251,7 +251,7 @@ def get_tangent(s, max_idx, max_slope, window_hours=1):
 
 # %% [markdown]
 # Model equations
-# - [ ] use the ones in growthcurves package
+# - use non-ODE formulation in comparison to the growthcurves package
 
 
 # %%
@@ -341,10 +341,7 @@ GrowthParams(*params_fitted)
 
 # %% [markdown]
 # ## Compare different growth models
-# Fitting the noisy data from logistic model
-
-# %% [markdown]
-# Fitting the noisy data with all models
+# Fitting the noisy data from a logistic model with three models
 
 # %%
 # to move to pkg
@@ -440,7 +437,7 @@ _ = ax.legend(["Smoothed data: rolling median", "Smoothed data: Savitzky-Golay"]
 # ## Fit a linear model on the data
 # - rolling window
 # - maximum overall growth: maximum of first derivative
-# - $mu_{max}$ growth is the maximum of the second derivative, or the maximum of the
+# - $\mu_{max}$ growth is the maximum of the second derivative, or the maximum of the
 #   log transformed data slope (estimated with a sliding window)
 
 # %%
@@ -750,9 +747,6 @@ ax.legend()
 # [croissance](https://pypi.org/project/croissance/)
 
 # %%
-# ?croissance.process_curve
-
-# %%
 s_normal_in_h = (
     pd.Series(pop_noisy, time_in_h).rolling(31, min_periods=15, center=True).median()
 )
@@ -764,9 +758,7 @@ gp = ret.growth_phases[0]
 gp.slope, gp.intercept
 
 # %%
-from croissance.figures.plot import plot_processed_curve
-
-fig, axes = plot_processed_curve(ret, yscale="both")
+fig, axes = croissance.figures.plot.plot_processed_curve(ret, yscale="both")
 
 # %% [markdown]
 # ## Growthcurves package
@@ -783,7 +775,7 @@ fit_stats, growth_stats = gc.inference.compare_methods(
     t=s_normal_in_h.index.values,
     N=s_normal_in_h.values,
     model_family="all",
-    spline_s=500,
+    spline_s=1,
     window_points=150,
 )
 growth_stats = pd.DataFrame(growth_stats).T
@@ -804,3 +796,5 @@ growth_stats[
         "N0",
     ]
 ]
+
+# %%
