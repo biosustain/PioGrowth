@@ -96,7 +96,7 @@ with st.form("Upload_data_form", clear_on_submit=False):
             "Negative values will distor the curve fitting as the logarith is set to "
             "NaN."
         ),
-        value=True,
+        value=False,
     )
     fill_na = filter_columns[0].checkbox(
         "Impute missing bioscatter readings using forward and backward filling",
