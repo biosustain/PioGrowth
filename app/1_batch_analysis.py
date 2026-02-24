@@ -151,10 +151,16 @@ if form_submit and not no_data_uploaded:
 
     ## Plot on log scale
     st.title("Show data on log scale")
+    df_rolling_min = df_rolling.min()
+    if (df_rolling <= 0).any().any():
+        st.warning(
+            "Data contains zero or negative values. Logarithmic plot may be distorted."
+            " for reactors : " + ", ".join(df_rolling.columns[df_rolling.min() <= 0])
+        )
     fig_log, axes = plot_growth_data(
-        np.log((df_rolling + 0.01)),
+        np.log((df_rolling / df_rolling.min())),
         titles=titles,
-        ylabel="ln(OD readings)",
+        ylabel="$ln(N/N_{min}$)",
         xlabel=xlabel,
     )
     # ! duplicated code, could be refactored
