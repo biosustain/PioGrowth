@@ -34,11 +34,12 @@ def render_about():
 
 # Navigation
 raw_data = st.Page("0_upload_data.py", title="Upload Data")
-calibrate_data = st.Page("0_calibrate.py", title="Calibrate OD Data")
+data_dashboard = st.Page("0_data_dashboard.py", title="Data Dashboard")
 batch_analysis = st.Page("1_batch_analysis.py", title="Batch Growth Analysis")
 turbistat_modus = st.Page(
     "2_turbiostat.py", title="Turbidostat Growth Analysis"
 )
+downloads_page = st.Page("0_downloads.py", title="Downloads")
 about_page = st.Page(render_about, title="About")
 
 # Sidebar
@@ -48,15 +49,23 @@ with st.sidebar:
         st.markdown("#### Workflow")
         st.markdown(
             "1. Upload and preprocess data\n"
-            "2. (Optional) Calibrate OD values\n"
-            "3. Run batch or turbidostat analysis"
+            "2. Review data dashboard\n"
+            "3. Run batch or turbidostat analysis\n"
+            "4. Export downloads"
         )
     st.caption(f"PioGrowth v{piogrowth.__version__}")
 
 
 # build multi-page app
 pg = st.navigation(
-    [raw_data, calibrate_data, batch_analysis, turbistat_modus, about_page],
+    [
+        raw_data,
+        data_dashboard,
+        batch_analysis,
+        turbistat_modus,
+        downloads_page,
+        about_page,
+    ],
     position="top",
 )
 
