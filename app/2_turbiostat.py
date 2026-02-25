@@ -5,7 +5,7 @@ import streamlit as st
 from buttons import create_download_button, download_data_button_in_sidebar
 from growthcurves_options import render_options_for_growthcurve_fitting
 from plots import create_figure_bytes_to_download, plot_growth_data_w_peaks
-from ui_components import show_warning_to_upload_data
+from ui_components import page_header_with_help, show_warning_to_upload_data
 
 from piogrowth.fit_growthcurves import run_model_fitting_on_df_with_peaks
 from piogrowth.turbistat import detect_peaks
@@ -30,6 +30,13 @@ def reset_metadata():
     st.session_state["df_meta"] = None
 
 
+def render_metadata_preview(df_meta_preview: pd.DataFrame):
+    """Render uploaded dilution metadata."""
+    with st.container(border=True):
+        st.subheader("Uploaded metadata of dilution events (optional)")
+        st.dataframe(df_meta_preview, width="stretch")
+
+
 ########################################################################################
 # state
 
@@ -46,144 +53,166 @@ DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (h
 ########################################################################################
 # UI
 
-st.title("Growth Analysis of turbidostat mode")
+TURBIDOSTAT_HELP = """
+Analyse OD600 measurements in turbidostat mode and identify high-growth periods.
+
+Workflow:
+1. Configure model and peak settings (optionally upload dilution metadata)
+2. Run analysis and inspect peaks/fit visualizations
+3. Review and download summary outputs
+"""
+
+page_header_with_help("Turbidostat Growth Analysis", TURBIDOSTAT_HELP)
 if no_data_uploaded:
     show_warning_to_upload_data()
     st.stop()
 
-st.markdown(
-    "Analyse pioreactor OD600 measurements when running in turbidostat mode. "
-    "In turbidostat mode, the growth is diluted to enable continuous growth state "
-    "of microorganisms in the reactors."
-)
-st.info(
-    "Data is plotted using measured timepoints (in seconds), and the modeling is done "
-    "using elapsed seconds since the initial timepoint."
-)
+with st.container(border=True):
+    st.markdown(
+        "Analyse pioreactor OD600 measurements when running in turbidostat mode. "
+        "In turbidostat mode, the growth is diluted to enable continuous growth state "
+        "of microorganisms in the reactors."
+    )
+    st.info(
+        "Data is plotted using measured timepoints (in seconds), and the modeling is done "
+        "using elapsed seconds since the initial timepoint."
+    )
 
 ### Form ###############################################################################
-with st.form(key="turbidostat_form"):
-    # Model selection
-    (
-        selected_model,
-        spline_smoothing_value,
-        n_fits_sliding_window,
-        n_window_size,
-        phase_boundary_method,
-        exp_frac,
-    ) = render_options_for_growthcurve_fitting(s_min=3, s_max=1000)
-    turbiostat_meta = st.file_uploader(
+with st.container(border=True):
+    st.header("Step 1. Configure and Run Analysis")
+    with st.form(key="turbidostat_form"):
+        # Model selection
         (
-            "Upload metadata of dilution events. Optional, but recommended. "
-            "If provided the peaks will be assigned based on the dilution events."
-        ),
-        type=["csv"],
-    )
-    # ! pick out names of columns in form
-    meta_data_options = st.columns(3)
-    if df_meta is None:
-        col_timestamp = meta_data_options[0].selectbox(
-            "Select timestamp column",
-            options=["timestamp", "timestamp_localtime"],
-            index=1,
-        )
-        col_reactors = meta_data_options[1].text_input(
-            "Select column with reactor information",
-            value="pioreactor_unit",
-        )
-        col_message = meta_data_options[2].text_input(
-            "Select column with event description",
-            value="message",
-        )
-    else:
-        col_timestamp = meta_data_options[0].selectbox(
-            "Select timestamp column",
-            options=df_meta.columns.tolist(),
-            index=(
-                df_meta.columns.get_loc(st.session_state.turbidostat_timestamp_col)
-                if st.session_state.get("turbidostat_timestamp_col") in df_meta.columns
-                else 0
+            selected_model,
+            spline_smoothing_value,
+            n_fits_sliding_window,
+            n_window_size,
+            phase_boundary_method,
+            exp_frac,
+        ) = render_options_for_growthcurve_fitting(s_min=3, s_max=1000)
+
+        meta_col, req_col = st.columns([4, 1], vertical_alignment="center")
+        with meta_col:
+            st.markdown("#### Dilution Metadata (Optional)")
+        with req_col:
+            with st.popover("Requirements", width="stretch"):
+                st.markdown("Expected CSV with event records.")
+                st.markdown("Columns should include:")
+                st.markdown("- timestamp column")
+                st.markdown("- reactor identifier")
+                st.markdown("- event/message column")
+                st.markdown("Rows labeled `DilutionEvent` are used when available.")
+
+        turbiostat_meta = st.file_uploader(
+            (
+                "Upload metadata of dilution events. Optional, but recommended. "
+                "If provided the peaks will be assigned based on the dilution events."
             ),
+            type=["csv"],
         )
-        col_reactors = meta_data_options[1].selectbox(
-            "Select column with reactor information",
-            options=df_meta.columns.tolist(),
-            index=(
-                df_meta.columns.get_loc(st.session_state.turbidostat_reactor_col)
-                if st.session_state.get("turbidostat_reactor_col") in df_meta.columns
-                else 0
-            ),
+        # ! pick out names of columns in form
+        meta_data_options = st.columns(3)
+        if df_meta is None:
+            col_timestamp = meta_data_options[0].selectbox(
+                "Select timestamp column",
+                options=["timestamp", "timestamp_localtime"],
+                index=1,
+            )
+            col_reactors = meta_data_options[1].text_input(
+                "Select column with reactor information",
+                value="pioreactor_unit",
+            )
+            col_message = meta_data_options[2].text_input(
+                "Select column with event description",
+                value="message",
+            )
+        else:
+            col_timestamp = meta_data_options[0].selectbox(
+                "Select timestamp column",
+                options=df_meta.columns.tolist(),
+                index=(
+                    df_meta.columns.get_loc(st.session_state.turbidostat_timestamp_col)
+                    if st.session_state.get("turbidostat_timestamp_col") in df_meta.columns
+                    else 0
+                ),
+            )
+            col_reactors = meta_data_options[1].selectbox(
+                "Select column with reactor information",
+                options=df_meta.columns.tolist(),
+                index=(
+                    df_meta.columns.get_loc(st.session_state.turbidostat_reactor_col)
+                    if st.session_state.get("turbidostat_reactor_col") in df_meta.columns
+                    else 0
+                ),
+            )
+            col_message = meta_data_options[2].selectbox(
+                "Select column with event description",
+                options=df_meta.columns.tolist(),
+                index=(
+                    df_meta.columns.get_loc(st.session_state.turbidostat_message_col)
+                    if st.session_state.get("turbidostat_message_col") in df_meta.columns
+                    else 0
+                ),
+            )
+        st.divider()
+        with st.expander(
+            "Peak detection settings if no dilution event data is available"
+            " (or should not be used)",
+            expanded=False,
+        ):
+            minimum_peak_height = st.number_input(
+                label=(
+                    "Minimum peak height (in OD units) - used only if no metadata provided. "
+                    "No values uses adaptive thresholding based on the maximum of a OD curve."
+                    "The default is one-fifth of the maximum OD value in a time series."
+                ),
+                min_value=0.0,
+                value=None,
+            )
+            minimum_distance = st.number_input(
+                label="Minimum distance between peaks (in number of measurement timepoints)",
+                min_value=3,
+                value=300,
+                step=1,
+                key="turbiostat_distance",
+            )
+        st.divider()
+        remove_downward_trending = st.checkbox(
+            label="Remove downward trending data points (negative OD changes) globally",
+            value=True,
+            key="remove_downward_trending",
         )
-        col_message = meta_data_options[2].selectbox(
-            "Select column with event description",
-            options=df_meta.columns.tolist(),
-            index=(
-                df_meta.columns.get_loc(st.session_state.turbidostat_message_col)
-                if st.session_state.get("turbidostat_message_col") in df_meta.columns
-                else 0
-            ),
+        smoothing_factor = st.slider(
+            label="Smoothing factor for spline fitting",
+            min_value=1.0,
+            value=1000.0,
+            step=1.0,
+            key="smoothing_factor",
         )
-    st.divider()
-    with st.expander(
-        "Peak detection settings if no dilution event data is available"
-        " (or should not be used)",
-        expanded=False,
-    ):
-        minimum_peak_height = st.number_input(
-            label=(
-                "Minimum peak height (in OD units) - used only if no metadata provided. "
-                "No values uses adaptive thresholding based on the maximum of a OD curve."
-                "The default is one-fifth of the maximum OD value in a time series."
-            ),
-            min_value=0.0,
-            value=None,
-        )
-        minimum_distance = st.number_input(
-            label="Minimum distance between peaks (in number of measurement timepoints)",
-            min_value=3,
-            value=300,
+        high_percentage_threshold = st.slider(
+            "Define percentage of µmax considered as high",
+            min_value=0,
+            max_value=100,
+            value=90,
             step=1,
-            key="turbiostat_distance",
+            key="high_percentage_threshold",
         )
-    st.divider()
-    remove_downward_trending = st.checkbox(
-        label="Remove downward trending data points (negative OD changes) globally",
-        value=True,
-        key="remove_downward_trending",
-    )
-    smoothing_factor = st.slider(
-        label="Smoothing factor for spline fitting",
-        min_value=1.0,
-        value=1000.0,
-        step=1.0,
-        key="smoothing_factor",
-    )
-    high_percentage_threshold = st.slider(
-        "Define percentage of µmax considered as high",
-        min_value=0,
-        max_value=100,
-        value=90,
-        step=1,
-        key="high_percentage_threshold",
-    )
-    submitted = st.form_submit_button("Analyse")
+        submitted = st.form_submit_button("Analyse", type="primary")
 
 with st.sidebar:
     st.button("Reset uploaded metadata", on_click=reset_metadata)
 
 ### Error messages
 if st.session_state.get("show_error"):
-    st.error(
-        "Could not find column in metadata. Please check the column names."
-        " The selection was adjusted to the available columns."
-    )
+    with st.container(border=True):
+        st.error(
+            "Could not find column in metadata. Please check the column names."
+            " The selection was adjusted to the available columns."
+        )
 
-container_metadata = st.empty()
 if df_meta is not None:
-    st.subheader("Uploaded metadata of dilution events (optional)")
-    with container_metadata:
-
-        st.write(df_meta)
+    render_metadata_preview(df_meta)
 
 ########################################################################################
 ### On Submission of form parameters
@@ -221,52 +250,54 @@ if turbiostat_meta is not None:
     df_meta["elapsed_time_in_hours"] = df_meta["elapsed_time_in_seconds"] / 3600.0
 
     # ! check that format is as expected
-    with container_metadata:
-        st.write(df_meta)
+    render_metadata_preview(df_meta)
 
 # Peak detection: Based on metadata or using scipy.signal.find_peaks
 if df_meta is not None:
-    st.subheader("Reading peaks from provided metadata")
-    st.write("Data is rounded to match OD data timepoints.")
-    # if this fails user needs to pick out names of columns in form
-    if not (len(set((col_timestamp, col_reactors, col_message))) == 3):
-        st.error(
-            "Selected columns from uploaded dilution metadata cannot overlap."
-            " Use for each a unique column."
-        )
-        st.stop()
-    try:
-        peaks = df_meta.pivot(
-            index="elapsed_time_in_hours",
-            columns=col_reactors,
-            values=col_message,
-        )
-        st.session_state["turbidostat_timestamp_col"] = col_timestamp
-        st.session_state["turbidostat_reactor_col"] = col_reactors
-        st.session_state["turbidostat_message_col"] = col_message
-    except KeyError:
-        st.session_state["show_error"] = True
-        st.rerun()
+    with st.container(border=True):
+        st.subheader("Step 2. Detect Peaks from Uploaded Metadata")
+        st.write("Data is rounded to match OD data timepoints.")
+        # if this fails user needs to pick out names of columns in form
+        if not (len(set((col_timestamp, col_reactors, col_message))) == 3):
+            st.error(
+                "Selected columns from uploaded dilution metadata cannot overlap."
+                " Use for each a unique column."
+            )
+            st.stop()
+        try:
+            peaks = df_meta.pivot(
+                index="elapsed_time_in_hours",
+                columns=col_reactors,
+                values=col_message,
+            )
+            st.session_state["turbidostat_timestamp_col"] = col_timestamp
+            st.session_state["turbidostat_reactor_col"] = col_reactors
+            st.session_state["turbidostat_message_col"] = col_message
+        except KeyError:
+            st.session_state["show_error"] = True
+            st.rerun()
 
-    st.dataframe(peaks, width="stretch")
+        st.dataframe(peaks, width="stretch")
 else:
-    st.subheader("Detected peaks")
-    st.write(
-        "Note: Peaks are detected using "
-        "[`scipy.signal.find_peaks`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html)"
-    )
-    if minimum_peak_height is not None:
+    with st.container(border=True):
+        st.subheader("Step 2. Detect Peaks Automatically")
         st.write(
-            "Minimum distance between peaks: "
-            f"{minimum_peak_height} number of measured timepoints"
+            "Note: Peaks are detected using "
+            "[`scipy.signal.find_peaks`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.find_peaks.html)"
         )
+        if minimum_peak_height is not None:
+            st.write(
+                "Minimum distance between peaks: "
+                f"{minimum_peak_height} number of measured timepoints"
+            )
     _detect_peaks = functools.partial(
         detect_peaks,
         distance=minimum_distance,
         prominence=minimum_peak_height,
     )
     peaks = df_rolling.apply(_detect_peaks)
-    st.dataframe(peaks)
+    with st.container(border=True):
+        st.dataframe(peaks, width="stretch")
     st.session_state["peaks"] = peaks
     download_data_button_in_sidebar(
         "peaks",
@@ -323,7 +354,9 @@ for ax, col in zip(axes, df_rolling.columns):
     range_exp_phase = list(zip(sub_df["exp_phase_start"], sub_df["exp_phase_end"]))
     for _start, _end in range_exp_phase:
         ax.axvspan(_start, _end, color="gray", alpha=0.2)
-st.pyplot(fig)
+with st.container(border=True):
+    st.subheader("Step 3. Review Fitted Curves and Peaks")
+    st.pyplot(fig)
 
 with st.sidebar:
     create_download_button(
@@ -337,11 +370,12 @@ with st.sidebar:
 
 # Summary table
 ### Summary Table ##################################################################
-st.subheader("Summary of high growth periods")
-st.write(
-    f"The start time was {start_time}. Timepoints are relative to this start time."
-)
-st.dataframe(stats_df, width="content")
+with st.container(border=True):
+    st.subheader("Step 4. Summary of High Growth Periods")
+    st.write(
+        f"The start time was {start_time}. Timepoints are relative to this start time."
+    )
+    st.dataframe(stats_df, width="content")
 st.session_state["batch_analysis_summary_df"] = stats_df
 download_data_button_in_sidebar(
     "batch_analysis_summary_df",
