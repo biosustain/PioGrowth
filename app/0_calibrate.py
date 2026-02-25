@@ -16,7 +16,12 @@ Workflow:
 2. Review the adjusted data and plot
 3. Download calibrated data from the sidebar
 
-Use this only when a linear calibration is justified for your instrument range.
+Use with caution.
+
+Calibration assumes a linear relationship between the original and target OD values.
+
+For bioscatter values between zero and five, linear adjustment is often used in
+practice. Detailed benchmarking should still be validated for your setup.
 """
 
 
@@ -84,17 +89,6 @@ def apply_linear_adjustments(
 
 
 page_header_with_help("Calibrate OD Data", CALIBRATION_HELP)
-
-with st.container(border=True):
-    st.warning("Use with caution.")
-    st.markdown(
-        """
-Calibration assumes a linear relationship between the original and target OD values.
-
-For bioscatter values between zero and five, linear adjustment is often used in
-practice. Detailed benchmarking should still be validated for your setup.
-"""
-    )
 
 ### Stop if df_rolling is not available
 if no_data_uploaded:
