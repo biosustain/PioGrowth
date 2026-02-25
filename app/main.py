@@ -6,15 +6,16 @@ from ui_components import render_markdown
 import piogrowth
 from piogrowth.styling import green_gradient, green_navbar, red_buttons
 
-# General configurations
-st.set_page_config(page_title="PioGrowth", layout="wide")
-
 logo_path = Path(__file__).with_name("logo.svg")
 logo_source = (
     str(logo_path)
     if logo_path.exists()
     else "https://raw.githubusercontent.com/sambra95/TheGrowthAnalysisApp/main/logo.svg"
 )
+
+# General configurations
+st.set_page_config(page_title="PioGrowth", layout="wide", page_icon=logo_source)
+
 st.logo(logo_source, link="https://github.com/biosustain/PioGrowth")
 
 # Initialize constants
