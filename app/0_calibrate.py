@@ -178,13 +178,11 @@ if st.session_state.get("is_df_rolling_adjusted") not in (None, False):
 if od_adjustment_upload is None:
     with st.container(border=True):
         st.header("Step 2. Generate Template (Optional)")
-        st.markdown(
-            """
+        st.markdown("""
 Fill in the OD template and upload it on the Upload Data page (Step 1).
 
 Template values are initialized from the first and last filtered OD values per reactor.
-"""
-        )
+""")
         adjustment_template = build_od_adjustment_template(df_rolling)
         create_download_button(
             label="Download OD adjustment template",

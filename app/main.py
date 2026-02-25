@@ -36,9 +36,7 @@ def render_about():
 raw_data = st.Page("0_upload_data.py", title="Upload Data")
 data_dashboard = st.Page("0_data_dashboard.py", title="Data Dashboard")
 batch_analysis = st.Page("1_batch_analysis.py", title="Batch Growth Analysis")
-turbistat_modus = st.Page(
-    "2_turbiostat.py", title="Turbidostat Growth Analysis"
-)
+turbistat_modus = st.Page("2_turbiostat.py", title="Turbidostat Growth Analysis")
 downloads_page = st.Page("0_downloads.py", title="Downloads")
 about_page = st.Page(render_about, title="About")
 

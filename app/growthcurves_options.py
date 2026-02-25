@@ -46,18 +46,16 @@ def render_options_for_growthcurve_fitting(s_min=3, s_max=1000, s_default=1000):
     phase_boundary_method = tangent_cols[0].radio(
         "Select method for exponential phase detection (default recommended):",
         ["default", "tangent", "threshold"],
-        help=(
-            """
+        help=("""
             Default picks for parametric models the threshold method and
-            for phenomenological models, the sliding window and spline method the 
+            for phenomenological models, the sliding window and spline method the
             tangent method.
 
             In short:
 
             - "threshold": Threshold-based method using fractions of μ_max
             - "tangent": Tangent line method at point of maximum growth rate
-            """
-        ),
+            """),
         index=0,
     )
     exp_frac = tangent_cols[1].slider(
@@ -173,7 +171,9 @@ def _ui_model_selection_upload_style():
     return model_family_internal, growth_method, model_type, param_col
 
 
-def _ui_method_params_upload_style(growth_method: str, param_col, s_min: int, s_max: int):
+def _ui_method_params_upload_style(
+    growth_method: str, param_col, s_min: int, s_max: int
+):
     """Render method-specific controls and convert to spline_s/window_points values."""
     with param_col:
         if growth_method == "Sliding Window":
@@ -537,7 +537,9 @@ def render_upload_style_analysis_options(s_min=3, s_max=1000):
         ) = _ui_qc_filters_upload_style()
 
     with boundary_col:
-        phase_boundary_method, lag_cutoff, exp_cutoff = _ui_phase_boundaries_upload_style()
+        phase_boundary_method, lag_cutoff, exp_cutoff = (
+            _ui_phase_boundaries_upload_style()
+        )
 
     st.write("")
     help_model_col, help_boundary_col = st.columns(2, gap="large")

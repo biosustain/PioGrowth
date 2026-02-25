@@ -5,7 +5,6 @@ from ui_components import page_header_with_help, show_warning_to_upload_data
 
 import piogrowth.convert_qurve
 
-
 DOWNLOADS_HELP = """
 Download processed exports.
 

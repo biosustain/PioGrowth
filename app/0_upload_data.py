@@ -235,7 +235,9 @@ with st.container(border=True):
             "reactors."
         )
         min_date, max_date = None, None
-        time_window_cols = st.columns([3, 4, 1], gap="large", vertical_alignment="bottom")
+        time_window_cols = st.columns(
+            [3, 4, 1], gap="large", vertical_alignment="bottom"
+        )
         with time_window_cols[0]:
             round_time = st.slider(
                 "Round time to nearest second (defining timesteps)."
@@ -343,7 +345,7 @@ if file is not None:
                 ]
             ]
             msg += "- Kept only core data columns.\n"
-        except KeyError as e:
+        except KeyError:
             st.error(
                 "Could not keep only core data columns. "
                 "Please check that the uploaded file contains "

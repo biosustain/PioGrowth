@@ -6,7 +6,6 @@ from ui_components import page_header_with_help, show_warning_to_upload_data
 
 import piogrowth
 
-
 DATA_DASHBOARD_HELP = """
 Review processed upload outputs in one place:
 

@@ -133,9 +133,15 @@ def _run_model_fitting_on_df_with_peaks_compat(
 
             stats["segment_start"] = start_seg
             stats["segment_end"] = end_seg
-            if stats.get("exp_phase_start") is not None and stats["exp_phase_start"] < start_seg:
+            if (
+                stats.get("exp_phase_start") is not None
+                and stats["exp_phase_start"] < start_seg
+            ):
                 stats["exp_phase_start"] = start_seg
-            if stats.get("exp_phase_end") is not None and stats["exp_phase_end"] > end_seg:
+            if (
+                stats.get("exp_phase_end") is not None
+                and stats["exp_phase_end"] > end_seg
+            ):
                 stats["exp_phase_end"] = end_seg
             stats["elapsed_time"] = time.time() - fit_start
             stats["model_name"] = model_name
@@ -144,6 +150,7 @@ def _run_model_fitting_on_df_with_peaks_compat(
     stats_df = pd.DataFrame(stats_dict).T
     stats_df.index.names = ["reactor", "segment"]
     return stats_df
+
 
 TURBIDOSTAT_HELP = """
 Analyse OD600 measurements in turbidostat mode and identify high-growth periods.

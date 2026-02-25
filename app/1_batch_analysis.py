@@ -1,11 +1,12 @@
 import inspect
-import numpy as np
-import pandas as pd
-import streamlit as st
+import time
+
 import growthcurves as gc
 import growthcurves.plot as gc_plot
+import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
-import time
+import streamlit as st
 from growthcurves_options import (
     render_parameter_calculation_table_upload_style,
     render_upload_style_analysis_options,
@@ -762,17 +763,23 @@ if stats_df is not None and batch_options is not None:
             exp_phase_start = _get_reactor_stat(
                 stats_df, selected_reactor, "exp_phase_start"
             )
-            exp_phase_end = _get_reactor_stat(stats_df, selected_reactor, "exp_phase_end")
+            exp_phase_end = _get_reactor_stat(
+                stats_df, selected_reactor, "exp_phase_end"
+            )
             lag0 = (
                 float(exp_phase_start)
                 if pd.notna(exp_phase_start)
                 else float(t_all.min())
             )
-            exp0 = float(exp_phase_end) if pd.notna(exp_phase_end) else float(t_all.max())
+            exp0 = (
+                float(exp_phase_end) if pd.notna(exp_phase_end) else float(t_all.max())
+            )
             st.session_state[phase_key] = (lag0, exp0)
         if maxod_key not in st.session_state:
             max_od_stat = _get_reactor_stat(stats_df, selected_reactor, "max_od")
-            default_max_od = float(max_od_stat) if pd.notna(max_od_stat) else actual_max_od
+            default_max_od = (
+                float(max_od_stat) if pd.notna(max_od_stat) else actual_max_od
+            )
             st.session_state[maxod_key] = (
                 min(default_max_od, actual_max_od) if actual_max_od > 0 else 0.0
             )

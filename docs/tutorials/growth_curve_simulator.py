@@ -183,7 +183,7 @@ def timeindex_to_hours(index: pd.DatetimeIndex):
         Array of elapsed hours (float) since the first timestamp in the index,
         reshaped as a column vector.
     """
-    x = (index - index[0]).total_seconds().to_numpy() / 3600
+    (index - index[0]).total_seconds().to_numpy() / 3600
     return
 
 
