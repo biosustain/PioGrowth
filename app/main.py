@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import streamlit as st
 from ui_components import render_markdown
 
@@ -6,6 +8,14 @@ from piogrowth.styling import green_gradient, green_navbar, red_buttons
 
 # General configurations
 st.set_page_config(page_title="PioGrowth", layout="wide")
+
+logo_path = Path(__file__).with_name("logo.svg")
+logo_source = (
+    str(logo_path)
+    if logo_path.exists()
+    else "https://raw.githubusercontent.com/sambra95/TheGrowthAnalysisApp/main/logo.svg"
+)
+st.logo(logo_source, link="https://github.com/biosustain/PioGrowth")
 
 # Initialize constants
 DEFAULT_CUSTOM_ID = "pioreactor_experiment"
