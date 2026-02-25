@@ -28,9 +28,9 @@ if __name__ == "__main__":
     # does not work on series due to indexing using values.
     mask = data.rolling(window=5, center=True).apply(
         lambda s: out_of_iqr_window(
-            s.values,
+            s,
         ),
-        raw=False,
+        raw=True,
     )
     print(mask)
 
@@ -41,4 +41,8 @@ if __name__ == "__main__":
 
     # series is understood by numpy and values are accessed.
     mask = gc_out_of_iqr(data, window_size=5)
+    print(mask)
+
+    mask = data.to_frame("S1").apply(gc_out_of_iqr, args=(5,))
+
     print(mask)
