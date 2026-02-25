@@ -574,8 +574,6 @@ smoothing_range = get_smoothing_range(len(df_rolling))
 ### Form ###############################################################################
 with st.container(border=True):
     st.header("Step 1. Configure Analysis Options")
-    with st.popover("Data used for analysis (rolling median data)", width="stretch"):
-        st.dataframe(st.session_state["df_rolling"], width="content")
     analysis_options = render_upload_style_analysis_options(
         s_min=smoothing_range.s_min, s_max=smoothing_range.s_max
     )

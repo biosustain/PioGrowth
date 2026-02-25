@@ -1,22 +1,13 @@
-from io import BytesIO
-
 import pandas as pd
 import streamlit as st
-from buttons import download_data_button_in_sidebar
-from plots import plot_growth_data_w_mask
 from ui_components import page_header_with_help
 
 import piogrowth
-import piogrowth.convert_qurve
 
 custom_id = st.session_state["custom_id"]
 df_raw_od_data = st.session_state["df_raw_od_data"]
 df_wide_raw_od_data = st.session_state.get("df_wide_raw_od_data")
 df_wide_raw_od_data_filtered = st.session_state.get("df_wide_raw_od_data_filtered")
-df_rolling = st.session_state.get("df_rolling")
-df_time_map = st.session_state.get("df_time_map")
-df_qurve_format = st.session_state.get("df_qurve_format")
-masked = st.session_state.get("masked")
 min_periods = st.session_state.get("min_periods", 5)
 # use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
 
@@ -24,10 +15,11 @@ UPLOAD_HELP = """
 This page loads and preprocesses a single PioReactor OD dataset.
 
 Use this order:
-1. Upload the OD data file (plus optional calibration/metadata files)
-2. Configure filtering, time-window, and plotting options
-3. Apply options and review raw/filtered outputs
-4. (Optional) Export processed outputs and QurvE-format data
+1. Upload the OD data file
+2. (Optional) Upload calibration/turbidostat metadata files
+3. Configure and apply preprocessing options
+4. Review tables and plots on the Data Dashboard page
+5. Use the Downloads page for exports
 """
 
 page_header_with_help("Upload Data", UPLOAD_HELP)
@@ -61,47 +53,71 @@ with st.container(border=True):
                 width="stretch",
             )
 
-    upload_options_cols = st.columns([4, 4], gap="small")
-    with upload_options_cols[0]:
-        with st.container(border=True):
-            st.markdown("**Main OD Data**")
-            file = st.file_uploader(
-                "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
-                type=["csv", "txt"],
-                # needs callback to clear session state
+    st.markdown("**Main OD Data**")
+    file = st.file_uploader(
+        "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
+        type=["csv", "txt"],
+        # needs callback to clear session state
+    )
+    main_options_cols = st.columns([3, 2], gap="medium")
+    with main_options_cols[0]:
+        keep_core_data = st.checkbox(
+            "Keep only core data columns (timestamp, pioreactor_unit, od_reading)?",
+            value=True,
+            help="If checked, only the essential columns are kept from the uploaded file.",
+        )
+    with main_options_cols[1]:
+        custom_id = st.text_input(
+            "Custom ID for data",
+            max_chars=30,
+            value=custom_id,
+        )
+
+    if file is None:
+        if df_raw_od_data is None:
+            st.warning("No data uploaded.")
+            st.info("Upload a comma-separated (`.csv`) file to get started.")
+
+with st.container(border=True):
+    st.header("Step 2. Optional metadata uploads")
+    optional_upload_cols = st.columns([2, 3], gap="small")
+    with optional_upload_cols[0]:
+        st.markdown("**OD Calibration Table**")
+        od_adjustment_upload = st.file_uploader(
+            "OD adjustment table",
+            type=["csv"],
+            key="upload_page_od_adjustment_table",
+        )
+    with optional_upload_cols[1]:
+        st.markdown("**Turbidostat Metadata**")
+        turbidostat_meta_upload = st.file_uploader(
+            "Dilution metadata (for Turbidostat page)",
+            type=["csv"],
+            key="upload_page_turbidostat_meta",
+        )
+        st.session_state.setdefault("turbidostat_timestamp_col", "timestamp_localtime")
+        st.session_state.setdefault("turbidostat_reactor_col", "pioreactor_unit")
+        st.session_state.setdefault("turbidostat_message_col", "message")
+        timestamp_options = ["timestamp", "timestamp_localtime"]
+        if st.session_state.get("turbidostat_timestamp_col") not in timestamp_options:
+            st.session_state["turbidostat_timestamp_col"] = "timestamp_localtime"
+        turbi_cols = st.columns(3, gap="small")
+        with turbi_cols[0]:
+            st.selectbox(
+                "Select timestamp column",
+                options=timestamp_options,
+                key="turbidostat_timestamp_col",
             )
-            main_options_cols = st.columns([3, 2], gap="medium")
-            with main_options_cols[0]:
-                keep_core_data = st.checkbox(
-                    "Keep only core data columns (timestamp, pioreactor_unit, od_reading)?",
-                    value=True,
-                    help="If checked, only the essential columns are kept from the uploaded file.",
-                )
-            with main_options_cols[1]:
-                custom_id = st.text_input(
-                    "Custom ID for data",
-                    max_chars=30,
-                    value=custom_id,
-                )
-    with upload_options_cols[1]:
-        st.subheader("Optional metadata uploads")
-        optional_upload_cols = st.columns(2, gap="small")
-        with optional_upload_cols[0]:
-            with st.container(border=True):
-                st.markdown("**OD Calibration Table**")
-                od_adjustment_upload = st.file_uploader(
-                    "OD adjustment table (for Calibrate OD Data page)",
-                    type=["csv"],
-                    key="upload_page_od_adjustment_table",
-                )
-        with optional_upload_cols[1]:
-            with st.container(border=True):
-                st.markdown("**Turbidostat Metadata**")
-                turbidostat_meta_upload = st.file_uploader(
-                    "Dilution metadata (for Turbidostat page)",
-                    type=["csv"],
-                    key="upload_page_turbidostat_meta",
-                )
+        with turbi_cols[1]:
+            st.text_input(
+                "Select column with reactor information",
+                key="turbidostat_reactor_col",
+            )
+        with turbi_cols[2]:
+            st.text_input(
+                "Select column with event description",
+                key="turbidostat_message_col",
+            )
 
     if od_adjustment_upload is not None:
         st.session_state["od_adjustment_upload_bytes"] = od_adjustment_upload.getvalue()
@@ -118,141 +134,139 @@ with st.container(border=True):
         st.session_state["turbidostat_meta_upload_bytes"] = None
         st.session_state["turbidostat_meta_upload_name"] = None
 
-    if file is None:
-        if df_raw_od_data is None:
-            st.warning("No data uploaded.")
-            st.info("Upload a comma-separated (`.csv`) file to get started.")
-
 ### Form ##############################################################################
 with st.container(border=True):
-    st.header("Step 2. Configure Processing Options")
+    st.header("Step 3. Configure Processing Options")
 
     with st.form("Upload_data_form", clear_on_submit=False):
-        st.write("#### Reactor Selection")
-        col1, col2 = st.columns([1, 3], vertical_alignment="center")
-        filter_option = col1.radio(
-            "Select if selected reactors are to be kept or removed", ("Remove", "Keep")
-        )
+        st.write("#### Data filtering options:")
         if st.session_state.get("df_raw_od_data") is None:
-            reactors_selected = col2.text_input(
-                "Enter reactors to filter (comma separated)", ""
+            available_reactors = []
+            reactors_selected = st.multiselect(
+                "Select reactors to include in analysis",
+                options=available_reactors,
+                default=available_reactors,
+                help="Upload OD data to populate available reactors.",
             )
         else:
-            # update possible reactors in form with available reactors
-            col2.empty()  # Clear previous text input
-            reactors_selected = col2.multiselect(
-                "Select reactors to filter",
-                options=df_raw_od_data["pioreactor_unit"].unique(),
+            available_reactors = sorted(
+                df_raw_od_data["pioreactor_unit"].dropna().astype(str).unique().tolist()
             )
-
-        round_time = st.slider(
-            "Round time to nearest second (defining timesteps)."
-            "Can be used to align timeseries "
-            "with slight time offsets.",
-            0,
-            60,
-            5,
-            step=1,
-        )
-
-        st.divider()
-        st.write("#### Data filtering options:")
-        filter_columns = st.columns(3)
-        remove_negative = filter_columns[0].checkbox(
-            "Set negative OD readings to missing (NaN)",
-            help=(
-                "Negative values will distor the curve fitting as the logarith is set to "
-                "NaN."
-            ),
-            value=True,
-        )
-        fill_na = filter_columns[0].checkbox(
-            "Impute missing bioscatter readings using forward and backward filling",
-            help=(
-                "If checked, missing values will be "
-                "imputed using forward fill and backward fill. This is recommended if you "
-                "expect only a few missing or negative values that are likely due to "
-                "measurement errors.  Note that this will include negative zeros which"
-                " were previously removed using the above option."
-            ),
-            value=False,
-        )
-        # ! move to after smoothing is applied?
-        remove_downward_trending = filter_columns[0].checkbox(
-            label="Remove downward trending data points (negative OD changes) globally after"
-            " smoothing the data.",
-            value=False,
-            help=(
-                "This can be used to remove data points that are smaller than a previous "
-                "one. Downward trends will be removed, but the upward trend will be kept "
-                "from a local minimum."
-            ),
-            key="remove_downward_trending",
-        )
-        remove_max = filter_columns[1].checkbox(
-            "Remove maximum OD readings by quantile",
-            value=False,
-        )
-        quantile_max = filter_columns[1].slider(
-            "Max quantile for maximum removal",
-            0.9,
-            1.0,
-            0.99,
-            step=0.01,
-        )
-        filter_by_iqr_range = filter_columns[2].checkbox(
-            "Remove outliers by Inter-Quartil-Range (IQR) in rolling window of timepoints",
-            value=False,
-        )
-        iqr_range_value = filter_columns[2].slider(
-            "IQR range for outlier removal",
-            1.0,
-            3.0,
-            1.5,
-            step=0.1,
-        )
-        rolling_window = filter_columns[2].slider(
-            "Rolling window (of timepoints) for IQR outlier removal",
-            11,
-            61,
-            21,
-            step=2,
-        )
+            reactors_selected = st.multiselect(
+                "Select reactors to include in analysis",
+                options=available_reactors,
+                default=available_reactors,
+                help=(
+                    "All reactors are selected by default. Remove any reactors you do not "
+                    "want analyzed."
+                ),
+            )
+        filter_columns = st.columns(2)
+        with filter_columns[0]:
+            remove_negative = st.checkbox(
+                "Set negative OD readings to missing (NaN)",
+                help=(
+                    "Negative values will distor the curve fitting as the logarith is set to "
+                    "NaN."
+                ),
+                value=True,
+            )
+            fill_na = st.checkbox(
+                "Impute missing bioscatter readings using forward and backward filling",
+                help=(
+                    "If checked, missing values will be "
+                    "imputed using forward fill and backward fill. This is recommended if you "
+                    "expect only a few missing or negative values that are likely due to "
+                    "measurement errors.  Note that this will include negative zeros which"
+                    " were previously removed using the above option."
+                ),
+                value=False,
+            )
+            # ! move to after smoothing is applied?
+            remove_downward_trending = st.checkbox(
+                label="Remove downward trending data points (negative OD changes) globally after"
+                " smoothing the data.",
+                value=False,
+                help=(
+                    "This can be used to remove data points that are smaller than a previous "
+                    "one. Downward trends will be removed, but the upward trend will be kept "
+                    "from a local minimum."
+                ),
+                key="remove_downward_trending",
+            )
+            remove_max = st.checkbox(
+                "Remove maximum OD readings by quantile",
+                value=False,
+            )
+            filter_by_iqr_range = st.checkbox(
+                "Remove outliers by Inter-Quartil-Range (IQR) in rolling window of timepoints",
+                value=False,
+            )
+        with filter_columns[1]:
+            quantile_max = st.slider(
+                "Max quantile for maximum removal",
+                0.9,
+                1.0,
+                0.99,
+                step=0.01,
+            )
+            iqr_range_value = st.slider(
+                "IQR range for outlier removal",
+                1.0,
+                3.0,
+                1.5,
+                step=0.1,
+            )
+            rolling_window = st.slider(
+                "Rolling window (of timepoints) for IQR outlier removal",
+                11,
+                61,
+                21,
+                step=2,
+            )
 
         st.divider()
         st.write(
-            "#### Time window selection:\n"
-            "Select time window for data to be processed. Dates are inferred from "
+            "#### Time options:\n"
+            "Select time windows for data to be processed. Dates are inferred from "
             "uploaded data. This won't be plotted in red as filtered data, but just "
-            "cap the datapoints for reactors outside of the selected time window."
+            "cap the datapoints for reactors outside of the selected windows."
             "The overall time window bounds the selected time windows for the individual "
             "reactors."
         )
         min_date, max_date = None, None
-        if df_raw_od_data is not None:
-            min_date, max_date = st.select_slider(
-                "Select overall time window (inferred).",
-                options=df_raw_od_data["timestamp_rounded"],
-                value=(
-                    df_raw_od_data["timestamp_rounded"].min(),
-                    df_raw_od_data["timestamp_rounded"].max(),
+        time_window_cols = st.columns([3, 4, 1], gap="large", vertical_alignment="bottom")
+        with time_window_cols[0]:
+            round_time = st.slider(
+                "Round time to nearest second (defining timesteps)."
+                "Can be used to align timeseries "
+                "with slight time offsets.",
+                0,
+                60,
+                5,
+                step=1,
+            )
+        with time_window_cols[1]:
+            if df_raw_od_data is not None:
+                min_date, max_date = st.select_slider(
+                    "Select overall time window (inferred).",
+                    options=df_raw_od_data["timestamp_rounded"],
+                    value=(
+                        df_raw_od_data["timestamp_rounded"].min(),
+                        df_raw_od_data["timestamp_rounded"].max(),
+                    ),
+                )
+            else:
+                st.empty()
+        with time_window_cols[2]:
+            update_zero_timepoint = st.checkbox(
+                "Reset T0",
+                value=False,
+                help=(
+                    "If checked, a new zero time is set to the minimum timestamp of the overall"
+                    " time window."
                 ),
             )
-        st.warning(
-            "Note: This should be used primarily to cut the end of measurements."
-            " It might be used if after initial setup the PioReactors adjustments"
-            " distored the mounted sensors on the reactors."
-        )
-        update_zero_timepoint = st.checkbox(
-            "Readjust zero",
-            value=False,
-            help=(
-                "If checked, a new zero time is set to the minimum timestamp of the overall"
-                " time window."
-            ),
-        )
-
-        st.divider()
         time_ranges = {}
         if df_wide_raw_od_data is not None:
             with st.expander("Select time window per reactor"):
@@ -270,30 +284,14 @@ with st.container(border=True):
                     )
 
         st.divider()
-        st.write("#### Plotting options:")
-        use_same_yaxis_scale = st.checkbox(
-            "Use same y-axis for all reactors?",
-            value=False,
-            key="yaxis_scale",
-            help="Select plotting behaviour.",
-        )
-        use_elapsed_time = st.checkbox(
-            "Use elapsed time (since start) as x-axis on plots?",
-            value=True,
-            key="elapsed_time_option",
-            help="If checked, elapsed time will be used as x-axis in plots.",
-        )
-        st.divider()
         button_pressed = st.form_submit_button(
             "Apply options to uploaded data", type="primary", width="stretch"
         )
 
 ########################################################################################
-# Raw data and plots
+# Process data
 
 extra_warn = st.empty()
-
-container_raw_data = st.container(border=True)
 
 if custom_id:
     st.session_state["custom_id"] = custom_id
@@ -386,24 +384,21 @@ if file is not None:
             st.write(df_raw_od_data)
         st.stop()
     st.session_state["df_wide_raw_od_data"] = df_wide_raw_od_data
+    st.session_state["upload_processing_summary_msg"] = msg
     if rerun:
         # ? replace with callback function that creates the input form?
         st.rerun()
 
 ### Apply option from form #############################################################
 if button_pressed:
-    # Filter reactors (all measurements from selected reactors)
-    if reactors_selected:
-        st.write(f"Filtering reactors: {reactors_selected}")
-        if isinstance(reactors_selected, str):
-            # make it a list
-            reactors_selected = reactors_selected.split(",")
-            st.write(f"Filtering reactors: {reactors_selected}")
-        mask = df_raw_od_data["pioreactor_unit"].isin(reactors_selected)
-        if filter_option == "Remove":
-            df_raw_od_data = df_raw_od_data.loc[~mask]
-        else:
-            df_raw_od_data = df_raw_od_data.loc[mask]
+    # Keep only reactors selected for analysis
+    if not reactors_selected:
+        st.warning("No reactors selected. Select at least one reactor to continue.")
+        st.stop()
+    st.write(f"Reactors included in analysis: {reactors_selected}")
+    df_raw_od_data = df_raw_od_data.loc[
+        df_raw_od_data["pioreactor_unit"].astype(str).isin(reactors_selected)
+    ]
 
     # skip first or last measurements based on user input (after first loading the data)
     # ! won't be plotted in red as filtered data, but just not appear in the plots
@@ -533,8 +528,10 @@ if button_pressed:
     )
     st.session_state["df_rolling"] = df_rolling
 
-    if use_elapsed_time:
-        st.session_state["USE_ELAPSED_TIME_FOR_PLOTS"] = True
+    st.session_state["USE_ELAPSED_TIME_FOR_PLOTS"] = bool(
+        st.session_state.get("elapsed_time_option", True)
+    )
+    st.session_state["rolling_window"] = int(rolling_window)
 
     df_time_map = (
         df_raw_od_data[["timestamp_rounded", "elapsed_time_in_seconds"]]
@@ -544,121 +541,5 @@ if button_pressed:
     df_time_map["elapsed_time_in_hours"] = (
         df_time_map["elapsed_time_in_seconds"] / 3600.0
     )
-    st.dataframe(df_time_map, width="content")
     st.session_state["df_time_map"] = df_time_map
-
-
-with container_raw_data:
-    st.header("Step 3. Review Processed Outputs")
-    st.subheader("Raw OD data")
-    if df_raw_od_data is None:
-        st.info("Raw OD data preview appears after data is loaded.")
-    else:
-        st.dataframe(df_raw_od_data, width="content")
-
-if df_wide_raw_od_data is not None and masked is not None:
-    with st.container(border=True):
-        st.subheader("Filtered OD data and removed points")
-        if not use_same_yaxis_scale:
-            st.warning("Using different y-axis scale for each reactor.")
-        if use_elapsed_time:
-            df_wide_raw_od_data = piogrowth.reindex_w_relative_time(
-                df=df_wide_raw_od_data,
-                start_time=st.session_state["start_time"],
-            )
-            masked = piogrowth.reindex_w_relative_time(
-                df=masked,
-                start_time=st.session_state["start_time"],
-            )
-        fig = plot_growth_data_w_mask(
-            df_wide_raw_od_data,
-            masked,
-            sharey=use_same_yaxis_scale,
-            is_data_index=not use_elapsed_time,
-        )
-        st.write(fig)
-
-if msg:
-    with st.container(border=True):
-        st.subheader("Processing summary of OD readings")
-        st.markdown(msg)
-
-if st.session_state.get("df_raw_od_data") is not None:
-    download_data_button_in_sidebar(
-        "df_raw_od_data",
-        "Download raw data  \n(long format)",
-        file_name="data_long_rounded_timestamps.csv",
-    )
-
-if st.session_state.get("df_wide_raw_od_data") is not None:
-    download_data_button_in_sidebar(
-        "df_wide_raw_od_data",
-        "Download raw data  \n(wide format)",
-        file_name="data_wide_rounded_timestamps.csv",
-    )
-if st.session_state.get("df_wide_raw_od_data_filtered") is not None:
-    download_data_button_in_sidebar(
-        "df_wide_raw_od_data_filtered",
-        "Download filtered data",
-        file_name="filtered_data_wide_rounded_timestamps.csv",
-    )
-
-
-if df_rolling is not None:
-    with st.container(border=True):
-        st.subheader(
-            f"Rolling median in window of {rolling_window}s using filtered OD data"
-        )
-        st.write(df_rolling)
-
-        if not use_elapsed_time:
-            view = df_rolling.copy()
-            # Map the index (timestamp_rounded) to elapsed_time_in_hours
-            print(st.session_state["start_time"])
-            view.index = st.session_state["start_time"] + pd.to_timedelta(
-                view.index, unit="h"
-            )  # .to_timedelta(unit="s")
-        else:
-            # trigger no copy operation, as index is already in elapsed time
-            view = df_rolling
-
-        ax = view.plot.line(style=".", ms=2)
-        st.write(ax.get_figure())
-        download_data_button_in_sidebar(
-            "df_rolling",
-            "Download rolling median data",
-            file_name="rolling_median_on_filtered_wide_data_with_rounded_timestamps.csv",
-        )
-
-with st.container(border=True):
-    st.header("Step 4. Export QurvE Format (Optional)")
-    st.caption("Create and download an Excel file in QurvE-compatible format.")
-
-    # ? maybe add some invalidation
-    convert = st.button("Store QurvE format data", key="create_qurve_format")
-
-if convert:
-    if df_wide_raw_od_data_filtered is not None:
-        with st.spinner("Converting to QurvE format...", show_time=True):
-            # df_wide_raw_od_data_filtered is in wide data format with timestamp_rounded
-            qurve_data = piogrowth.convert_qurve.to_qurve_format(
-                df_wide_raw_od_data_filtered,
-                start_time=st.session_state["start_time"],
-            )
-            # Convert to Excel using BytesIO
-            buffer = BytesIO()
-            qurve_data.to_excel(buffer, index=True)
-            buffer.seek(0)
-        st.session_state["df_qurve_format"] = buffer
-    else:
-        st.warning("No filtered data available to convert to QurvE format.")
-
-
-if st.session_state.get("df_qurve_format") is not None:
-    st.download_button(
-        label="Download QurvE format data",
-        data=st.session_state["df_qurve_format"],
-        file_name=f"{custom_id}_qurve_format.xlsx",
-        mime="mime/xlsx",
-        key="download_qurve_format",
-    )
+    st.session_state["upload_processing_summary_msg"] = msg
