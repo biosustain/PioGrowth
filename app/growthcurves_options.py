@@ -462,9 +462,55 @@ def render_parameter_calculation_table_upload_style(options: dict):
     st.caption("Your selected settings will calculate growth parameters as follows:")
     st.markdown(
         f"""
-| OD(max) | μ<sub>max</sub> | Intrinsic Growth Rate | Doubling Time | Lag Time | μ<sub>max</sub> Time | μ<sub>max</sub> OD | Exponential End Time | RMSE |
-|---|---|---|---|---|---|---|---|---|
-| {max_od_calc} | {mu_max_calc} | {intrinsic_calc} | ln(2) / μ<sub>max</sub> | {lag_time_calc} | Time at μ<sub>max</sub> | OD at μ<sub>max</sub> | {exp_phase_end_calc} | {model_rmse_calc} |
+<div class="param-calc-table">
+    <table>
+        <thead>
+            <tr>
+                <th>OD(max)</th>
+                <th>μ<sub>max</sub></th>
+                <th>Intrinsic Growth Rate</th>
+                <th>Doubling Time</th>
+                <th>Lag Time</th>
+                <th>μ<sub>max</sub> Time</th>
+                <th>μ<sub>max</sub> OD</th>
+                <th>Exponential End Time</th>
+                <th>RMSE</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{max_od_calc}</td>
+                <td>{mu_max_calc}</td>
+                <td>{intrinsic_calc}</td>
+                <td>ln(2) / μ<sub>max</sub></td>
+                <td>{lag_time_calc}</td>
+                <td>Time at μ<sub>max</sub></td>
+                <td>OD at μ<sub>max</sub></td>
+                <td>{exp_phase_end_calc}</td>
+                <td>{model_rmse_calc}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+<style>
+div.param-calc-table table {{
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 1rem;
+}}
+div.param-calc-table th,
+div.param-calc-table td {{
+    border: 1px solid rgba(49, 51, 63, 0.2);
+    padding: 0.6rem 0.55rem;
+    text-align: center;
+    vertical-align: middle;
+    line-height: 1.35;
+}}
+div.param-calc-table th {{
+    font-size: 1.02rem;
+}}
+</style>
 """,
         unsafe_allow_html=True,
     )
