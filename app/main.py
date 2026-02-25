@@ -9,10 +9,8 @@ st.set_page_config(page_title="PioGrowth", layout="wide")
 
 # Initialize constants
 DEFAULT_CUSTOM_ID = "pioreactor_experiment"
-if st.session_state.get("custom_id") is None:
-    st.session_state["custom_id"] = DEFAULT_CUSTOM_ID
-if st.session_state.get("df_raw_od_data") is None:
-    st.session_state["df_raw_od_data"] = None
+st.session_state.setdefault("custom_id", DEFAULT_CUSTOM_ID)
+st.session_state.setdefault("df_raw_od_data", None)
 
 st.session_state["DEFAULT_XLABEL_TPS"] = "Timepoints (rounded)"
 st.session_state["DEFAULT_XLABEL_REL"] = "Elapsed time (hours)"
@@ -25,24 +23,30 @@ def render_about():
 
 # Navigation
 raw_data = st.Page("0_upload_data.py", title="Upload Data")
-calibrate_data = st.Page("0_calibrate.py", title="Calibrate to OD measurments")
-batch_analysis = st.Page("1_batch_analysis.py", title="Analyse growth experiment")
+calibrate_data = st.Page("0_calibrate.py", title="Calibrate OD Data")
+batch_analysis = st.Page("1_batch_analysis.py", title="Batch Growth Analysis")
 turbistat_modus = st.Page(
-    "2_turbiostat.py", title="Analyse growth experiment in turbidostat mode"
+    "2_turbiostat.py", title="Turbidostat Growth Analysis"
 )
 about_page = st.Page(render_about, title="About")
 
 # Sidebar
-st.sidebar.info("Info: To reset the app, reload the page.")
-# st.sidebar.button("Reset session", on_click=st.session_state.clear)
-st.sidebar.write(f"version: {piogrowth.__version__}")
-st.sidebar.write("Buttons activate if associated data is available:")
-# st.sidebar.write(st.session_state)
+with st.sidebar:
+    st.info("To reset the app, reload the page.")
+    with st.container(border=True):
+        st.markdown("#### Workflow")
+        st.markdown(
+            "1. Upload and preprocess data\n"
+            "2. (Optional) Calibrate OD values\n"
+            "3. Run batch or turbidostat analysis"
+        )
+    st.caption(f"PioGrowth v{piogrowth.__version__}")
 
 
 # build multi-page app
 pg = st.navigation(
-    [raw_data, calibrate_data, batch_analysis, turbistat_modus, about_page], position="top"
+    [raw_data, calibrate_data, batch_analysis, turbistat_modus, about_page],
+    position="top",
 )
 
 red_buttons()
