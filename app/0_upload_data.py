@@ -4,6 +4,7 @@ import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
 from plots import plot_growth_data_w_mask
+from ui_components import page_header_with_help
 
 import piogrowth
 import piogrowth.convert_qurve
@@ -19,211 +20,244 @@ masked = st.session_state.get("masked")
 min_periods = st.session_state.get("min_periods", 5)
 # use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
 
-st.title("Upload Data")
-container_download_example = st.empty()
+UPLOAD_HELP = """
+This page loads and preprocesses a single PioReactor OD dataset.
+
+Use this order:
+1. Upload the CSV/TXT file
+2. Configure filtering, time-window, and plotting options
+3. Apply options and review raw/filtered outputs
+4. (Optional) Export processed outputs and QurvE-format data
+"""
+
+page_header_with_help("Upload Data", UPLOAD_HELP)
 
 
 ########################################################################################
 # Upload File section
-file = st.file_uploader(
-    "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
-    type=["csv", "txt"],
-    # needs callback to clear session state
-)
-keep_core_data = st.checkbox(
-    "Keep only core data columns (timestamp, pioreactor_unit, od_reading)?",
-    value=True,
-    help="If checked, only the essential columns will be kept from the uploaded file.",
-)
-if file is None:
-    if df_raw_od_data is not None:
-        st.info("Some data was uploaded before. Processing will apply to that data.")
-    else:
-        with container_download_example:
-            col0, col1 = st.columns(2)
-            # populate columns (could be outside of with statement)
-            col0.warning("no data uploaded.")
-            # clicking triggers a re-run, but that is fast if no data was previously uploaded
-            col1.download_button(
-                label="Download example  pioreactor experiment in csv format.",
-                data=pd.read_csv("data/example_batch_data_od_readings.csv").to_csv(
-                    index=False
-                ),
+with st.container(border=True):
+    header_col, req_col = st.columns([4, 1], vertical_alignment="center")
+    with header_col:
+        st.header("Step 1. Upload PioReactor OD Data")
+    with req_col:
+        with st.popover("Requirements", width="stretch"):
+            st.markdown("**Expected structure:**")
+            st.markdown("- CSV/TXT file readable by `pandas.read_csv`")
+            st.markdown(
+                "- Required columns: `timestamp_localtime`, `pioreactor_unit`, `od_reading`"
+            )
+            st.markdown("- One row per measurement")
+            st.divider()
+            st.markdown("**Example file:**")
+            example_data = pd.read_csv("data/example_batch_data_od_readings.csv")
+            st.dataframe(example_data.head(10), hide_index=True, width="stretch")
+            st.download_button(
+                label="Download example CSV",
+                data=example_data.to_csv(index=False),
                 file_name="example_batch_data_od_readings.csv",
                 key="download_example_csv",
                 mime="text/csv",
+                type="primary",
+                width="stretch",
             )
-        st.info("Upload a comma-separated (csv) file to get started.")
+
+    file = st.file_uploader(
+        "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
+        type=["csv", "txt"],
+        # needs callback to clear session state
+    )
+    keep_core_data = st.checkbox(
+        "Keep only core data columns (timestamp, pioreactor_unit, od_reading)?",
+        value=True,
+        help="If checked, only the essential columns are kept from the uploaded file.",
+    )
+
+    if file is None:
+        if df_raw_od_data is not None:
+            st.info(
+                "Previously uploaded data is still available in the current session."
+            )
+        else:
+            st.warning("No data uploaded.")
+            st.info("Upload a comma-separated (`.csv`) file to get started.")
 
 ### Form ##############################################################################
-with st.form("Upload_data_form", clear_on_submit=False):
+with st.container(border=True):
+    st.header("Step 2. Configure Processing Options")
 
-    custom_id = st.text_input(
-        "Enter custom ID for data",
-        max_chars=30,
-        value=custom_id,
-    )
-    col1, col2 = st.columns([1, 3], vertical_alignment="center")
-    filter_option = col1.radio(
-        "Select if selected reactors are to be kept or removed", ("Remove", "Keep")
-    )
-    if st.session_state.get("df_raw_od_data") is None:
-        reactors_selected = col2.text_input(
-            "Enter reactors to filter (comma separated)", ""
+    with st.form("Upload_data_form", clear_on_submit=False):
+        custom_id = st.text_input(
+            "Enter custom ID for data",
+            max_chars=30,
+            value=custom_id,
         )
-    else:
-        # update possible reactors in form with available reactors
-        col2.empty()  # Clear previous text input
-        reactors_selected = col2.multiselect(
-            "Select reactors to filter",
-            options=df_raw_od_data["pioreactor_unit"].unique(),
+
+        st.write("#### Reactor Selection")
+        col1, col2 = st.columns([1, 3], vertical_alignment="center")
+        filter_option = col1.radio(
+            "Select if selected reactors are to be kept or removed", ("Remove", "Keep")
         )
-    round_time = st.slider(
-        "Round time to nearest second (defining timesteps)."
-        "Can be used to align timeseries "
-        "with slight time offsets.",
-        0,
-        60,
-        5,
-        step=1,
-    )
-    # Options for handeling negative OD readings
-    st.write("#### Data filtering options:")
-    filter_columns = st.columns(3)
-    remove_negative = filter_columns[0].checkbox(
-        "Set negative OD readings to missing (NaN)",
-        help=(
-            "Negative values will distor the curve fitting as the logarith is set to "
-            "NaN."
-        ),
-        value=True,
-    )
-    fill_na = filter_columns[0].checkbox(
-        "Impute missing bioscatter readings using forward and backward filling",
-        help=(
-            "If checked, missing values will be "
-            "imputed using forward fill and backward fill. This is recommended if you "
-            "expect only a few missing or negative values that are likely due to "
-            "measurement errors.  Note that this will include negative zeros which"
-            " were previously removed using the above option."
-        ),
-        value=False,
-    )
-    # ! move to after smoothing is applied?
-    remove_downward_trending = filter_columns[0].checkbox(
-        label="Remove downward trending data points (negative OD changes) globally after"
-        " smoothing the data.",
-        value=False,
-        help=(
-            "This can be used to remove data points that are smaller than a previous "
-            "one. Downward trends will be removed, but the upward trend will be kept "
-            "from a local minimum."
-        ),
-        key="remove_downward_trending",
-    )
-    remove_max = filter_columns[1].checkbox(
-        "Remove maximum OD readings by quantile",
-        value=False,
-    )
-    quantile_max = filter_columns[1].slider(
-        "Max quantile for maximum removal",
-        0.9,
-        1.0,
-        0.99,
-        step=0.01,
-    )
-    filter_by_iqr_range = filter_columns[2].checkbox(
-        "Remove outliers by Inter-Quartil-Range (IQR) in rolling window of timepoints",
-        value=False,
-    )
-    iqr_range_value = filter_columns[2].slider(
-        "IQR range for outlier removal",
-        1.0,
-        3.0,
-        1.5,
-        step=0.1,
-    )
-    rolling_window = filter_columns[2].slider(
-        "Rolling window (of timepoints) for IQR outlier removal",
-        11,
-        61,
-        21,
-        step=2,
-    )
-    st.divider()
-    st.write(
-        "#### Time window selection:\n"
-        "Select time window for data to be processed. Dates are inferred from "
-        "uploaded data. This won't be plotted in red as filtered data, but just "
-        "cap the datapoints for reactors outside of the selected time window."
-        "The overall time window bounds the selected time windows for the individual "
-        "reactors."
-    )
-    min_date, max_date = None, None
-    if df_raw_od_data is not None:
-        min_date, max_date = st.select_slider(
-            "Select overall time window (inferred).",
-            options=df_raw_od_data["timestamp_rounded"],
-            value=(
-                df_raw_od_data["timestamp_rounded"].min(),
-                df_raw_od_data["timestamp_rounded"].max(),
+        if st.session_state.get("df_raw_od_data") is None:
+            reactors_selected = col2.text_input(
+                "Enter reactors to filter (comma separated)", ""
+            )
+        else:
+            # update possible reactors in form with available reactors
+            col2.empty()  # Clear previous text input
+            reactors_selected = col2.multiselect(
+                "Select reactors to filter",
+                options=df_raw_od_data["pioreactor_unit"].unique(),
+            )
+
+        round_time = st.slider(
+            "Round time to nearest second (defining timesteps)."
+            "Can be used to align timeseries "
+            "with slight time offsets.",
+            0,
+            60,
+            5,
+            step=1,
+        )
+
+        st.divider()
+        st.write("#### Data filtering options:")
+        filter_columns = st.columns(3)
+        remove_negative = filter_columns[0].checkbox(
+            "Set negative OD readings to missing (NaN)",
+            help=(
+                "Negative values will distor the curve fitting as the logarith is set to "
+                "NaN."
+            ),
+            value=True,
+        )
+        fill_na = filter_columns[0].checkbox(
+            "Impute missing bioscatter readings using forward and backward filling",
+            help=(
+                "If checked, missing values will be "
+                "imputed using forward fill and backward fill. This is recommended if you "
+                "expect only a few missing or negative values that are likely due to "
+                "measurement errors.  Note that this will include negative zeros which"
+                " were previously removed using the above option."
+            ),
+            value=False,
+        )
+        # ! move to after smoothing is applied?
+        remove_downward_trending = filter_columns[0].checkbox(
+            label="Remove downward trending data points (negative OD changes) globally after"
+            " smoothing the data.",
+            value=False,
+            help=(
+                "This can be used to remove data points that are smaller than a previous "
+                "one. Downward trends will be removed, but the upward trend will be kept "
+                "from a local minimum."
+            ),
+            key="remove_downward_trending",
+        )
+        remove_max = filter_columns[1].checkbox(
+            "Remove maximum OD readings by quantile",
+            value=False,
+        )
+        quantile_max = filter_columns[1].slider(
+            "Max quantile for maximum removal",
+            0.9,
+            1.0,
+            0.99,
+            step=0.01,
+        )
+        filter_by_iqr_range = filter_columns[2].checkbox(
+            "Remove outliers by Inter-Quartil-Range (IQR) in rolling window of timepoints",
+            value=False,
+        )
+        iqr_range_value = filter_columns[2].slider(
+            "IQR range for outlier removal",
+            1.0,
+            3.0,
+            1.5,
+            step=0.1,
+        )
+        rolling_window = filter_columns[2].slider(
+            "Rolling window (of timepoints) for IQR outlier removal",
+            11,
+            61,
+            21,
+            step=2,
+        )
+
+        st.divider()
+        st.write(
+            "#### Time window selection:\n"
+            "Select time window for data to be processed. Dates are inferred from "
+            "uploaded data. This won't be plotted in red as filtered data, but just "
+            "cap the datapoints for reactors outside of the selected time window."
+            "The overall time window bounds the selected time windows for the individual "
+            "reactors."
+        )
+        min_date, max_date = None, None
+        if df_raw_od_data is not None:
+            min_date, max_date = st.select_slider(
+                "Select overall time window (inferred).",
+                options=df_raw_od_data["timestamp_rounded"],
+                value=(
+                    df_raw_od_data["timestamp_rounded"].min(),
+                    df_raw_od_data["timestamp_rounded"].max(),
+                ),
+            )
+        st.warning(
+            "Note: This should be used primarily to cut the end of measurements."
+            " It might be used if after initial setup the PioReactors adjustments"
+            " distored the mounted sensors on the reactors."
+        )
+        update_zero_timepoint = st.checkbox(
+            "Readjust zero",
+            value=False,
+            help=(
+                "If checked, a new zero time is set to the minimum timestamp of the overall"
+                " time window."
             ),
         )
-    st.warning(
-        "Note: This should be used primarily to cut the end of measurements."
-        " It might be used if after initial setup the PioReactors adjustments"
-        " distored the mounted sensors on the reactors."
-    )
-    update_zero_timepoint = st.checkbox(
-        "Readjust zero",
-        value=False,
-        help=(
-            "If checked, a new zero time is set to the minimum timestamp of the overall"
-            " time window."
-        ),
-    )
-    st.divider()
-    if df_wide_raw_od_data is not None:
-        with st.expander("Select time window per reactor"):
-            st.info("Note: Minimum and maximum for slider are reactor specific!")
-            # per reactor, get min and max timestamps
-            time_ranges = dict()
-            for reactor in df_wide_raw_od_data.columns:
-                time_ranges[reactor] = st.select_slider(
-                    f"Select time window (inferred) for {reactor}."
-                    " Bounded by overall time window.",
-                    options=df_wide_raw_od_data[reactor].dropna().index,
-                    value=(
-                        df_wide_raw_od_data[reactor].dropna().index.min(),
-                        df_wide_raw_od_data[reactor].dropna().index.max(),
-                    ),
-                )
-    st.divider()
-    st.write("#### Plotting options:")
-    use_same_yaxis_scale = st.checkbox(
-        "Use same y-axis for all reactors?",
-        value=False,
-        key="yaxis_scale",
-        help="Select plotting behaviour.",
-    )
-    use_elapsed_time = st.checkbox(
-        "Use elapsed time (since start) as x-axis on plots?",
-        value=True,
-        key="elapsed_time_option",
-        help="If checked, elapsed time will be used as x-axis in plots.",
-    )
-    st.divider()
-    button_pressed = st.form_submit_button(
-        "Apply options to uploaded data", type="primary"
-    )
+
+        st.divider()
+        time_ranges = {}
+        if df_wide_raw_od_data is not None:
+            with st.expander("Select time window per reactor"):
+                st.info("Note: Minimum and maximum for slider are reactor specific!")
+                # per reactor, get min and max timestamps
+                for reactor in df_wide_raw_od_data.columns:
+                    time_ranges[reactor] = st.select_slider(
+                        f"Select time window (inferred) for {reactor}."
+                        " Bounded by overall time window.",
+                        options=df_wide_raw_od_data[reactor].dropna().index,
+                        value=(
+                            df_wide_raw_od_data[reactor].dropna().index.min(),
+                            df_wide_raw_od_data[reactor].dropna().index.max(),
+                        ),
+                    )
+
+        st.divider()
+        st.write("#### Plotting options:")
+        use_same_yaxis_scale = st.checkbox(
+            "Use same y-axis for all reactors?",
+            value=False,
+            key="yaxis_scale",
+            help="Select plotting behaviour.",
+        )
+        use_elapsed_time = st.checkbox(
+            "Use elapsed time (since start) as x-axis on plots?",
+            value=True,
+            key="elapsed_time_option",
+            help="If checked, elapsed time will be used as x-axis in plots.",
+        )
+        st.divider()
+        button_pressed = st.form_submit_button(
+            "Apply options to uploaded data", type="primary", width="stretch"
+        )
 
 ########################################################################################
 # Raw data and plots
 
 extra_warn = st.empty()
 
-st.header("Raw OD data")
-container_raw_data = st.empty()
+container_raw_data = st.container(border=True)
 
 if custom_id:
     st.session_state["custom_id"] = custom_id
@@ -479,33 +513,39 @@ if button_pressed:
 
 
 with container_raw_data:
-    st.dataframe(df_raw_od_data, width="content")
+    st.header("Step 3. Review Processed Outputs")
+    st.subheader("Raw OD data")
+    if df_raw_od_data is None:
+        st.info("Raw OD data preview appears after data is loaded.")
+    else:
+        st.dataframe(df_raw_od_data, width="content")
 
 if df_wide_raw_od_data is not None and masked is not None:
-    # Download options
-
-    if not use_same_yaxis_scale:
-        st.warning("Using different y-axis scale for each reactor.")
-    if use_elapsed_time:
-        df_wide_raw_od_data = piogrowth.reindex_w_relative_time(
-            df=df_wide_raw_od_data,
-            start_time=st.session_state["start_time"],
+    with st.container(border=True):
+        st.subheader("Filtered OD data and removed points")
+        if not use_same_yaxis_scale:
+            st.warning("Using different y-axis scale for each reactor.")
+        if use_elapsed_time:
+            df_wide_raw_od_data = piogrowth.reindex_w_relative_time(
+                df=df_wide_raw_od_data,
+                start_time=st.session_state["start_time"],
+            )
+            masked = piogrowth.reindex_w_relative_time(
+                df=masked,
+                start_time=st.session_state["start_time"],
+            )
+        fig = plot_growth_data_w_mask(
+            df_wide_raw_od_data,
+            masked,
+            sharey=use_same_yaxis_scale,
+            is_data_index=not use_elapsed_time,
         )
-        masked = piogrowth.reindex_w_relative_time(
-            df=masked,
-            start_time=st.session_state["start_time"],
-        )
-    fig = plot_growth_data_w_mask(
-        df_wide_raw_od_data,
-        masked,
-        sharey=use_same_yaxis_scale,
-        is_data_index=not use_elapsed_time,
-    )
-    st.write(fig)
+        st.write(fig)
 
 if msg:
-    st.subheader("Processing summary of OD readings")
-    st.markdown(msg)
+    with st.container(border=True):
+        st.subheader("Processing summary of OD readings")
+        st.markdown(msg)
 
 if st.session_state.get("df_raw_od_data") is not None:
     download_data_button_in_sidebar(
@@ -529,32 +569,37 @@ if st.session_state.get("df_wide_raw_od_data_filtered") is not None:
 
 
 if df_rolling is not None:
-    st.header(f"Rolling median in window of {rolling_window}s using filtered OD data")
-    st.write(df_rolling)
+    with st.container(border=True):
+        st.subheader(
+            f"Rolling median in window of {rolling_window}s using filtered OD data"
+        )
+        st.write(df_rolling)
 
-    if not use_elapsed_time:
-        view = df_rolling.copy()
-        # Map the index (timestamp_rounded) to elapsed_time_in_hours
-        print(st.session_state["start_time"])
-        view.index = st.session_state["start_time"] + pd.to_timedelta(
-            view.index, unit="h"
-        )  # .to_timedelta(unit="s")
-    else:
-        # trigger no copy operation, as index is already in elapsed time
-        view = df_rolling
+        if not use_elapsed_time:
+            view = df_rolling.copy()
+            # Map the index (timestamp_rounded) to elapsed_time_in_hours
+            print(st.session_state["start_time"])
+            view.index = st.session_state["start_time"] + pd.to_timedelta(
+                view.index, unit="h"
+            )  # .to_timedelta(unit="s")
+        else:
+            # trigger no copy operation, as index is already in elapsed time
+            view = df_rolling
 
-    ax = view.plot.line(style=".", ms=2)
-    st.write(ax.get_figure())
-    download_data_button_in_sidebar(
-        "df_rolling",
-        "Download rolling median data",
-        file_name="rolling_median_on_filtered_wide_data_with_rounded_timestamps.csv",
-    )
+        ax = view.plot.line(style=".", ms=2)
+        st.write(ax.get_figure())
+        download_data_button_in_sidebar(
+            "df_rolling",
+            "Download rolling median data",
+            file_name="rolling_median_on_filtered_wide_data_with_rounded_timestamps.csv",
+        )
 
-st.markdown("### Store in QurvE format")
+with st.container(border=True):
+    st.header("Step 4. Export QurvE Format (Optional)")
+    st.caption("Create and download an Excel file in QurvE-compatible format.")
 
-# ? maybe add some invalidation
-convert = st.button("Store QurvE format data", key="create_qurve_format")
+    # ? maybe add some invalidation
+    convert = st.button("Store QurvE format data", key="create_qurve_format")
 
 if convert:
     if df_wide_raw_od_data_filtered is not None:
