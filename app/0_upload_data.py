@@ -1,5 +1,6 @@
 from io import BytesIO
 
+import growthcurves as gc
 import pandas as pd
 import streamlit as st
 from buttons import download_data_button_in_sidebar
@@ -412,14 +413,17 @@ if button_pressed:
 
     if filter_by_iqr_range:
         mask_outliers = (
-            df_wide_raw_od_data_filtered.rolling(
-                rolling_window,
-                min_periods=min_periods,
-                center=True,
-                closed="both",
-            )
-            .apply(piogrowth.filter.out_of_iqr, kwargs={"factor": iqr_range_value})
-            .astype(bool)
+            df_wide_raw_od_data_filtered
+            # .rolling(     rolling_window,
+            #     min_periods=min_periods,
+            #     center=True,
+            #     closed="both",
+            # )
+            .apply(
+                gc.preprocessing.out_of_iqr,
+                raw=False,
+                **{"factor": iqr_range_value, "window_size": rolling_window},
+            ).astype(bool)
         )
         # st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
         msg += f"- Number of outliers detected: {mask_outliers.sum().sum()}\n"
