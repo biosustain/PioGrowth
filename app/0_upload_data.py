@@ -24,7 +24,7 @@ UPLOAD_HELP = """
 This page loads and preprocesses a single PioReactor OD dataset.
 
 Use this order:
-1. Upload the CSV/TXT file
+1. Upload the OD data file (plus optional calibration/metadata files)
 2. Configure filtering, time-window, and plotting options
 3. Apply options and review raw/filtered outputs
 4. (Optional) Export processed outputs and QurvE-format data
@@ -61,23 +61,65 @@ with st.container(border=True):
                 width="stretch",
             )
 
-    file = st.file_uploader(
-        "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
-        type=["csv", "txt"],
-        # needs callback to clear session state
-    )
-    keep_core_data = st.checkbox(
-        "Keep only core data columns (timestamp, pioreactor_unit, od_reading)?",
-        value=True,
-        help="If checked, only the essential columns are kept from the uploaded file.",
-    )
+    upload_options_cols = st.columns([4, 4], gap="small")
+    with upload_options_cols[0]:
+        with st.container(border=True):
+            st.markdown("**Main OD Data**")
+            file = st.file_uploader(
+                "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
+                type=["csv", "txt"],
+                # needs callback to clear session state
+            )
+            main_options_cols = st.columns([3, 2], gap="medium")
+            with main_options_cols[0]:
+                keep_core_data = st.checkbox(
+                    "Keep only core data columns (timestamp, pioreactor_unit, od_reading)?",
+                    value=True,
+                    help="If checked, only the essential columns are kept from the uploaded file.",
+                )
+            with main_options_cols[1]:
+                custom_id = st.text_input(
+                    "Custom ID for data",
+                    max_chars=30,
+                    value=custom_id,
+                )
+    with upload_options_cols[1]:
+        st.subheader("Optional metadata uploads")
+        optional_upload_cols = st.columns(2, gap="small")
+        with optional_upload_cols[0]:
+            with st.container(border=True):
+                st.markdown("**OD Calibration Table**")
+                od_adjustment_upload = st.file_uploader(
+                    "OD adjustment table (for Calibrate OD Data page)",
+                    type=["csv"],
+                    key="upload_page_od_adjustment_table",
+                )
+        with optional_upload_cols[1]:
+            with st.container(border=True):
+                st.markdown("**Turbidostat Metadata**")
+                turbidostat_meta_upload = st.file_uploader(
+                    "Dilution metadata (for Turbidostat page)",
+                    type=["csv"],
+                    key="upload_page_turbidostat_meta",
+                )
+
+    if od_adjustment_upload is not None:
+        st.session_state["od_adjustment_upload_bytes"] = od_adjustment_upload.getvalue()
+        st.session_state["od_adjustment_upload_name"] = od_adjustment_upload.name
+    else:
+        st.session_state["od_adjustment_upload_bytes"] = None
+        st.session_state["od_adjustment_upload_name"] = None
+    if turbidostat_meta_upload is not None:
+        st.session_state["turbidostat_meta_upload_bytes"] = (
+            turbidostat_meta_upload.getvalue()
+        )
+        st.session_state["turbidostat_meta_upload_name"] = turbidostat_meta_upload.name
+    else:
+        st.session_state["turbidostat_meta_upload_bytes"] = None
+        st.session_state["turbidostat_meta_upload_name"] = None
 
     if file is None:
-        if df_raw_od_data is not None:
-            st.info(
-                "Previously uploaded data is still available in the current session."
-            )
-        else:
+        if df_raw_od_data is None:
             st.warning("No data uploaded.")
             st.info("Upload a comma-separated (`.csv`) file to get started.")
 
@@ -86,12 +128,6 @@ with st.container(border=True):
     st.header("Step 2. Configure Processing Options")
 
     with st.form("Upload_data_form", clear_on_submit=False):
-        custom_id = st.text_input(
-            "Enter custom ID for data",
-            max_chars=30,
-            value=custom_id,
-        )
-
         st.write("#### Reactor Selection")
         col1, col2 = st.columns([1, 3], vertical_alignment="center")
         filter_option = col1.radio(

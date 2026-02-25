@@ -1,4 +1,5 @@
 import functools
+from io import BytesIO
 
 import pandas as pd
 import streamlit as st
@@ -28,6 +29,8 @@ def get_values_from_df(df_wide: pd.DataFrame, indices: pd.MultiIndex) -> pd.Data
 
 def reset_metadata():
     st.session_state["df_meta"] = None
+    st.session_state["turbidostat_meta_upload_bytes"] = None
+    st.session_state["turbidostat_meta_upload_name"] = None
 
 
 def render_metadata_preview(df_meta_preview: pd.DataFrame):
@@ -46,6 +49,8 @@ no_data_uploaded = st.session_state.get("df_rolling") is None
 df_rolling = st.session_state.get("df_rolling")
 start_time = st.session_state.get("start_time")
 df_meta = st.session_state.get("df_meta")
+turbidostat_meta_bytes = st.session_state.get("turbidostat_meta_upload_bytes")
+turbidostat_meta_name = st.session_state.get("turbidostat_meta_upload_name")
 round_time = st.session_state.get("round_time", 60)
 
 DEFAULT_XLABEL_TPS = st.session_state.get("DEFAULT_XLABEL_TPS", "Timepoints (rounded)")
@@ -57,7 +62,7 @@ TURBIDOSTAT_HELP = """
 Analyse OD600 measurements in turbidostat mode and identify high-growth periods.
 
 Workflow:
-1. Configure model and peak settings (optionally upload dilution metadata)
+1. Configure model and peak settings (optionally upload dilution metadata on Upload Data page)
 2. Run analysis and inspect peaks/fit visualizations
 3. Review and download summary outputs
 """
@@ -95,6 +100,7 @@ with st.container(border=True):
         meta_col, req_col = st.columns([4, 1], vertical_alignment="center")
         with meta_col:
             st.markdown("#### Dilution Metadata (Optional)")
+            st.caption("Upload this file on the Upload Data page (Step 1).")
         with req_col:
             with st.popover("Requirements", width="stretch"):
                 st.markdown("Expected CSV with event records.")
@@ -104,13 +110,22 @@ with st.container(border=True):
                 st.markdown("- event/message column")
                 st.markdown("Rows labeled `DilutionEvent` are used when available.")
 
-        turbiostat_meta = st.file_uploader(
-            (
-                "Upload metadata of dilution events. Optional, but recommended. "
-                "If provided the peaks will be assigned based on the dilution events."
-            ),
-            type=["csv"],
-        )
+        if turbidostat_meta_bytes is None:
+            st.caption(
+                "No dilution metadata uploaded. Upload an optional CSV on the Upload Data page (Step 1)."
+            )
+            st.page_link(
+                "0_upload_data.py",
+                label="Go to Upload Data",
+                icon=":material/upload:",
+            )
+        else:
+            meta_label = (
+                turbidostat_meta_name
+                if turbidostat_meta_name
+                else "uploaded_metadata.csv"
+            )
+            st.success(f"Using uploaded dilution metadata: `{meta_label}`")
         # ! pick out names of columns in form
         meta_data_options = st.columns(3)
         if df_meta is None:
@@ -221,16 +236,16 @@ if not submitted:
 
 st.session_state["show_error"] = False
 
-if turbiostat_meta is None and df_meta is not None:
+if turbidostat_meta_bytes is None and df_meta is not None:
     st.warning(
         "Using previously uploaded metadata of dilution events."
         " Reset app to use automatic peak picking."
     )
 
-if turbiostat_meta is not None:
+if turbidostat_meta_bytes is not None:
     # st.subheader("Uploaded metadata of dilution events (optional)")
     df_meta = pd.read_csv(
-        turbiostat_meta, parse_dates=["timestamp_localtime"]
+        BytesIO(turbidostat_meta_bytes), parse_dates=["timestamp_localtime"]
     ).convert_dtypes()
     df_meta.insert(
         0,

@@ -1,3 +1,5 @@
+from io import BytesIO
+
 import pandas as pd
 import streamlit as st
 from buttons import create_download_button, download_data_button_in_sidebar
@@ -12,7 +14,7 @@ CALIBRATION_HELP = """
 This page applies a linear OD calibration to `df_rolling`.
 
 Workflow:
-1. Upload a CSV adjustment table with columns `reactor` and `od`
+1. Upload a CSV adjustment table on the Upload Data page (Step 1)
 2. Review the adjusted data and plot
 3. Download calibrated data from the sidebar
 
@@ -98,7 +100,7 @@ if no_data_uploaded:
 with st.container(border=True):
     header_col, req_col = st.columns([4, 1], vertical_alignment="center")
     with header_col:
-        st.header("Step 1. Upload OD Adjustment Table")
+        st.header("Step 1. OD Adjustment Table (Upload Data page)")
     with req_col:
         with st.popover("Requirements", width="stretch"):
             st.markdown("**Expected CSV columns:**")
@@ -113,10 +115,21 @@ with st.container(border=True):
             template_preview = build_od_adjustment_template(df_rolling).head(10)
             st.dataframe(template_preview, hide_index=True, width="stretch")
 
-    od_adjustment_upload = st.file_uploader(
-        "Upload OD adjustment table",
-        type=["csv"],
-        key="od_adjustment_table",
+    od_adjustment_bytes = st.session_state.get("od_adjustment_upload_bytes")
+    od_adjustment_name = st.session_state.get("od_adjustment_upload_name")
+    if od_adjustment_bytes is None:
+        st.info("Upload the OD adjustment table on the Upload Data page (Step 1).")
+        st.page_link(
+            "0_upload_data.py",
+            label="Go to Upload Data",
+            icon=":material/upload:",
+        )
+    else:
+        file_label = od_adjustment_name if od_adjustment_name else "uploaded_file.csv"
+        st.success(f"Using uploaded OD adjustment table: `{file_label}`")
+
+    od_adjustment_upload = (
+        BytesIO(od_adjustment_bytes) if od_adjustment_bytes is not None else None
     )
 
 
@@ -167,7 +180,7 @@ if od_adjustment_upload is None:
         st.header("Step 2. Generate Template (Optional)")
         st.markdown(
             """
-Fill in the OD template and upload it above.
+Fill in the OD template and upload it on the Upload Data page (Step 1).
 
 Template values are initialized from the first and last filtered OD values per reactor.
 """
