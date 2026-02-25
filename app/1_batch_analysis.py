@@ -319,6 +319,29 @@ def _is_bad_fit(gs: dict) -> bool:
     return gc.inference.is_no_growth(gs or {})
 
 
+def _get_reactor_stat(stats_df: pd.DataFrame, reactor: str, key: str):
+    """Get a scalar stat value even if reactor labels are duplicated."""
+    if key not in stats_df.columns or reactor not in stats_df.index:
+        return np.nan
+    value = stats_df.loc[reactor, key]
+    if isinstance(value, pd.Series):
+        value = value.dropna()
+        return value.iloc[0] if not value.empty else np.nan
+    return value
+
+
+def _get_reactor_stats_dict(stats_df: pd.DataFrame, reactor: str) -> dict:
+    """Get one reactor stats row as a plain dictionary."""
+    if reactor not in stats_df.index:
+        return {}
+    row = stats_df.loc[reactor]
+    if isinstance(row, pd.DataFrame):
+        if row.empty:
+            return {}
+        row = row.iloc[0]
+    return row.to_dict()
+
+
 def _normalize_smooth(value) -> str:
     """Normalize spline mode to fast/slow with legacy compatibility."""
     mode = str(value).strip().lower() if value is not None else ""
@@ -532,8 +555,9 @@ def _build_analysis_params_per_sample_table(
         }
 
         if sample in stats_df.index:
-            row["fit_t_min"] = stats_df.loc[sample].get("fit_t_min")
-            row["fit_t_max"] = stats_df.loc[sample].get("fit_t_max")
+            sample_stats = _get_reactor_stats_dict(stats_df, sample)
+            row["fit_t_min"] = sample_stats.get("fit_t_min")
+            row["fit_t_max"] = sample_stats.get("fit_t_max")
         rows.append(row)
 
     return pd.DataFrame(rows)
@@ -737,26 +761,20 @@ if stats_df is not None and batch_options is not None:
         rp_smooth_key = f"batch_rp_smooth__{selected_reactor}"
 
         if phase_key not in st.session_state:
+            exp_phase_start = _get_reactor_stat(
+                stats_df, selected_reactor, "exp_phase_start"
+            )
+            exp_phase_end = _get_reactor_stat(stats_df, selected_reactor, "exp_phase_end")
             lag0 = (
-                float(stats_df.loc[selected_reactor, "exp_phase_start"])
-                if "exp_phase_start" in stats_df.columns
-                and pd.notna(stats_df.loc[selected_reactor, "exp_phase_start"])
+                float(exp_phase_start)
+                if pd.notna(exp_phase_start)
                 else float(t_all.min())
             )
-            exp0 = (
-                float(stats_df.loc[selected_reactor, "exp_phase_end"])
-                if "exp_phase_end" in stats_df.columns
-                and pd.notna(stats_df.loc[selected_reactor, "exp_phase_end"])
-                else float(t_all.max())
-            )
+            exp0 = float(exp_phase_end) if pd.notna(exp_phase_end) else float(t_all.max())
             st.session_state[phase_key] = (lag0, exp0)
         if maxod_key not in st.session_state:
-            default_max_od = (
-                float(stats_df.loc[selected_reactor, "max_od"])
-                if "max_od" in stats_df.columns
-                and pd.notna(stats_df.loc[selected_reactor, "max_od"])
-                else actual_max_od
-            )
+            max_od_stat = _get_reactor_stat(stats_df, selected_reactor, "max_od")
+            default_max_od = float(max_od_stat) if pd.notna(max_od_stat) else actual_max_od
             st.session_state[maxod_key] = (
                 min(default_max_od, actual_max_od) if actual_max_od > 0 else 0.0
             )
@@ -1035,7 +1053,7 @@ if stats_df is not None and batch_options is not None:
             selected_fit_times = t_all.tolist()
 
         reactor_fit = fit_cache.get(selected_reactor)
-        current_stats = stats_df.loc[selected_reactor].to_dict()
+        current_stats = _get_reactor_stats_dict(stats_df, selected_reactor)
         if reactor_fit is None and len(t_all) >= 2 and not _is_bad_fit(current_stats):
             fit_result, stats_new = _fit_single_series(t_all, y_all, batch_options)
             fit_cache[selected_reactor] = fit_result
@@ -1044,7 +1062,7 @@ if stats_df is not None and batch_options is not None:
             st.session_state["batch_analysis_fit_cache"] = fit_cache
             reactor_fit = fit_result
 
-        stats = stats_df.loc[selected_reactor].to_dict()
+        stats = _get_reactor_stats_dict(stats_df, selected_reactor)
 
         status_col, expander_col = st.columns([2, 5])
         with status_col:
