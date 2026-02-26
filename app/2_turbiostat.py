@@ -40,31 +40,6 @@ def reset_metadata():
     st.session_state["turbidostat_meta_upload_name"] = None
 
 
-########################################################################################
-# state
-
-use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
-df_time_map = st.session_state.get("df_time_map")
-no_data_uploaded = st.session_state.get("df_rolling") is None
-df_rolling = st.session_state.get("df_rolling")
-start_time = st.session_state.get("start_time")
-df_meta = st.session_state.get("df_meta")
-turbidostat_meta_bytes = st.session_state.get("turbidostat_meta_upload_bytes")
-turbidostat_meta_name = st.session_state.get("turbidostat_meta_upload_name")
-col_timestamp = st.session_state.get("turbidostat_timestamp_col", "timestamp_localtime")
-col_reactors = st.session_state.get("turbidostat_reactor_col", "pioreactor_unit")
-col_message = st.session_state.get("turbidostat_message_col", "message")
-round_time = st.session_state.get("round_time", 60)
-
-DEFAULT_XLABEL_TPS = st.session_state.get("DEFAULT_XLABEL_TPS", "Timepoints (rounded)")
-DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (hours)")
-NON_PARAMETRIC_FIT_PARAMS = set(
-    inspect.signature(gc.non_parametric.fit_non_parametric).parameters
-)
-########################################################################################
-# UI
-
-
 def _build_turbidostat_fit_kwargs(
     model_name: str,
     n_fits: int,
@@ -150,6 +125,31 @@ def _run_model_fitting_on_df_with_peaks_compat(
     stats_df = pd.DataFrame(stats_dict).T
     stats_df.index.names = ["reactor", "segment"]
     return stats_df
+
+
+########################################################################################
+# state
+
+use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
+df_time_map = st.session_state.get("df_time_map")
+no_data_uploaded = st.session_state.get("df_rolling") is None
+df_rolling = st.session_state.get("df_rolling")
+start_time = st.session_state.get("start_time")
+df_meta = st.session_state.get("df_meta")
+turbidostat_meta_bytes = st.session_state.get("turbidostat_meta_upload_bytes")
+turbidostat_meta_name = st.session_state.get("turbidostat_meta_upload_name")
+col_timestamp = st.session_state.get("turbidostat_timestamp_col", "timestamp_localtime")
+col_reactors = st.session_state.get("turbidostat_reactor_col", "pioreactor_unit")
+col_message = st.session_state.get("turbidostat_message_col", "message")
+round_time = st.session_state.get("round_time", 60)
+
+DEFAULT_XLABEL_TPS = st.session_state.get("DEFAULT_XLABEL_TPS", "Timepoints (rounded)")
+DEFAULT_XLABEL_REL = st.session_state.get("DEFAULT_XLABEL_REL", "Elapsed time (hours)")
+NON_PARAMETRIC_FIT_PARAMS = set(
+    inspect.signature(gc.non_parametric.fit_non_parametric).parameters
+)
+########################################################################################
+# UI
 
 
 TURBIDOSTAT_HELP = """
