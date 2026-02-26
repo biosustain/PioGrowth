@@ -775,7 +775,7 @@ fit_stats, growth_stats = gc.inference.compare_methods(
     t=s_normal_in_h.index.values,
     N=s_normal_in_h.values,
     model_family="all",
-    spline_s=1,
+    # spline="fast",  # ! needs updating in growthcurves package
     window_points=150,
 )
 growth_stats = pd.DataFrame(growth_stats).T
