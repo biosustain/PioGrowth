@@ -183,7 +183,7 @@ def timeindex_to_hours(index: pd.DatetimeIndex):
         Array of elapsed hours (float) since the first timestamp in the index,
         reshaped as a column vector.
     """
-    x = (index - index[0]).total_seconds().to_numpy() / 3600
+    (index - index[0]).total_seconds().to_numpy() / 3600
     return
 
 
@@ -775,7 +775,7 @@ fit_stats, growth_stats = gc.inference.compare_methods(
     t=s_normal_in_h.index.values,
     N=s_normal_in_h.values,
     model_family="all",
-    spline_s=1,
+    # spline="fast",  # ! needs updating in growthcurves package
     window_points=150,
 )
 growth_stats = pd.DataFrame(growth_stats).T
