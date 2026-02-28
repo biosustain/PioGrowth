@@ -20,6 +20,186 @@ from piogrowth.fit_spline import (  # fit_spline_and_derivatives_one_batch,
     get_smoothing_range,
 )
 
+
+# page level functions
+def _on_no_growth(
+    selected_reactor, fit_cache, selected_fit_times_map, used_params_map, t_all
+):
+    new_stats = gc.inference.bad_fit_stats()
+    new_stats["no_growth_reason"] = "manually assigned"
+    new_stats["model_name"] = batch_options["selected_model"]
+    piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, new_stats)
+    # ? what is fit_cache?
+    fit_cache.pop(selected_reactor, None)
+    selected_fit_times_map[selected_reactor] = t_all.tolist()
+    used_params_map[selected_reactor] = piogrowth.analyze.default_analysis_params(
+        batch_options
+    )
+    st.session_state["batch_analysis_summary_df"] = stats_df
+    st.session_state["batch_analysis_fit_cache"] = fit_cache
+    st.session_state["batch_selected_fit_times"] = selected_fit_times_map
+    st.session_state["batch_analysis_used_params"] = used_params_map
+
+
+def _on_reanalyse(
+    selected_reactor, fit_cache, selected_fit_times_map, used_params_map, t_all, y_all
+):
+    options_refit, analysis_params = _build_effective_options_from_widgets()
+    used_times = selected_fit_times_map.get(selected_reactor)
+    if used_times:
+        t_refit, y_refit = piogrowth.analyze.collect_selected_series(
+            s, np.asarray(used_times, dtype=float)
+        )
+        if t_refit.size < 2:
+            t_refit, y_refit = t_all, y_all
+            used_times = t_all.tolist()
+    else:
+        t_refit, y_refit = t_all, y_all
+        used_times = t_all.tolist()
+
+    fit_result_new, stats_new = piogrowth.analyze.fit_single_series(
+        t_refit, y_refit, options_refit
+    )
+    stats_new["exp_phase_start"] = float(lag_end)
+    stats_new["exp_phase_end"] = float(exp_end)
+    stats_new["max_od"] = float(max_od)
+    fit_cache[selected_reactor] = fit_result_new
+    piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, stats_new)
+    selected_fit_times_map[selected_reactor] = used_times
+    used_params_map[selected_reactor] = analysis_params
+    st.session_state["batch_analysis_summary_df"] = stats_df
+    st.session_state["batch_analysis_fit_cache"] = fit_cache
+    st.session_state["batch_selected_fit_times"] = selected_fit_times_map
+    st.session_state["batch_analysis_used_params"] = used_params_map
+
+
+def _on_defaults(
+    rp_min_od_key,
+    rp_min_gr_key,
+    rp_min_snr_key,
+    rp_min_dp_key,
+    rp_window_key,
+    rp_smooth_key,
+):
+    st.session_state[rp_min_od_key] = float(batch_options.get("min_od_increase", 0.05))
+    st.session_state[rp_min_gr_key] = float(batch_options.get("min_growth_rate", 0.001))
+    st.session_state[rp_min_snr_key] = float(
+        batch_options.get("min_signal_to_noise", 1.0)
+    )
+    st.session_state[rp_min_dp_key] = int(batch_options.get("min_data_points", 5))
+    st.session_state[rp_window_key] = int(batch_options.get("n_window_size", 10))
+    st.session_state[rp_smooth_key] = piogrowth.analyze.normalize_smooth(
+        batch_options.get("smooth_mode", "fast")
+    )
+
+    fit_result_new, stats_new = piogrowth.analyze.fit_single_series(
+        t_all, y_all, batch_options
+    )
+    stats_new["exp_phase_start"] = float(lag_end)
+    stats_new["exp_phase_end"] = float(exp_end)
+    stats_new["max_od"] = float(max_od)
+    fit_cache[selected_reactor] = fit_result_new
+    piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, stats_new)
+    selected_fit_times_map[selected_reactor] = t_all.tolist()
+    used_params_map.pop(selected_reactor, None)
+    st.session_state["batch_analysis_summary_df"] = stats_df
+    st.session_state["batch_analysis_fit_cache"] = fit_cache
+    st.session_state["batch_selected_fit_times"] = selected_fit_times_map
+    st.session_state["batch_analysis_used_params"] = used_params_map
+
+
+def _on_exclude(
+    selected_reactor, fit_cache, selected_fit_times_map, used_params_map, stats_df
+):
+    fit_cache.pop(selected_reactor, None)
+    selected_fit_times_map.pop(selected_reactor, None)
+    used_params_map.pop(selected_reactor, None)
+    if selected_reactor in stats_df.index:
+        stats_df.drop(index=selected_reactor, inplace=True)
+    remaining = [c for c in df_rolling.columns if c in stats_df.index]
+    if remaining:
+        st.session_state["batch_selected_reactor"] = remaining[0]
+    st.session_state["batch_analysis_summary_df"] = stats_df
+    st.session_state["batch_analysis_fit_cache"] = fit_cache
+    st.session_state["batch_selected_fit_times"] = selected_fit_times_map
+    st.session_state["batch_analysis_used_params"] = used_params_map
+    st.rerun()
+
+
+def _build_effective_options_from_widgets(
+    rp_min_od_key,
+    rp_min_gr_key,
+    rp_min_snr_key,
+    rp_min_dp_key,
+    rp_window_key,
+    rp_smooth_key,
+) -> tuple[dict, dict]:
+    options_refit = dict(batch_options)
+    options_refit["min_od_increase"] = float(st.session_state[rp_min_od_key])
+    options_refit["min_growth_rate"] = float(st.session_state[rp_min_gr_key])
+    options_refit["min_signal_to_noise"] = float(st.session_state[rp_min_snr_key])
+    options_refit["min_data_points"] = int(st.session_state[rp_min_dp_key])
+
+    analysis_params = {
+        "min_od_increase": options_refit["min_od_increase"],
+        "min_growth_rate": options_refit["min_growth_rate"],
+        "min_signal_to_noise": options_refit["min_signal_to_noise"],
+        "min_data_points": options_refit["min_data_points"],
+    }
+    method = piogrowth.analyze.growth_method_from_model(batch_options["selected_model"])
+    if method == "Sliding Window":
+        options_refit["n_window_size"] = int(st.session_state[rp_window_key])
+        analysis_params["window_points"] = int(st.session_state[rp_window_key])
+    elif method == "Spline":
+        options_refit["smooth_mode"] = piogrowth.analyze.normalize_smooth(
+            st.session_state[rp_smooth_key]
+        )
+        analysis_params["smooth"] = options_refit["smooth_mode"]
+    return options_refit, analysis_params
+
+
+def _cycle(items, current, step):
+    """Cycle forward/backward through a list."""
+    if not items:
+        return current
+    try:
+        idx = items.index(current)
+    except ValueError:
+        idx = 0
+    return items[(idx + step) % len(items)]
+
+
+def _move_reactor(step: int, reactors):
+    st.session_state["batch_selected_reactor"] = _cycle(
+        reactors,
+        st.session_state.get("batch_selected_reactor", reactors[0]),
+        step,
+    )
+
+
+def _on_lasso_select(chart_key: str):
+    xs = piogrowth.analyze.get_selected_times_from_event(
+        st.session_state.get(chart_key)
+    )
+    if xs.size < 2:
+        return
+    refit_t, refit_y = piogrowth.analyze.collect_selected_series(s, xs)
+    if refit_t.size < 2:
+        return
+    options_refit, analysis_params = _build_effective_options_from_widgets()
+    fit_result_new, stats_new = piogrowth.analyze.fit_single_series(
+        refit_t, refit_y, options_refit
+    )
+    fit_cache[selected_reactor] = fit_result_new
+    piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, stats_new)
+    selected_fit_times_map[selected_reactor] = refit_t.tolist()
+    used_params_map[selected_reactor] = analysis_params
+    st.session_state["batch_analysis_summary_df"] = stats_df
+    st.session_state["batch_analysis_fit_cache"] = fit_cache
+    st.session_state["batch_selected_fit_times"] = selected_fit_times_map
+    st.session_state["batch_analysis_used_params"] = used_params_map
+
+
 ########################################################################################
 # state
 
@@ -47,17 +227,6 @@ Workflow:
 
 
 BATCH_HELP = f"{BATCH_HELP}\n\n---\n\n{piogrowth.analyze.load_method_notes_markdown()}"
-
-
-def _cycle(items, current, step):
-    """Cycle forward/backward through a list."""
-    if not items:
-        return current
-    try:
-        idx = items.index(current)
-    except ValueError:
-        idx = 0
-    return items[(idx + step) % len(items)]
 
 
 page_header_with_help("Batch Growth Analysis", BATCH_HELP)
@@ -145,13 +314,6 @@ if stats_df is not None and batch_options is not None:
         )
         fit_cache = st.session_state.setdefault("batch_analysis_fit_cache", {})
         used_params_map = st.session_state.setdefault("batch_analysis_used_params", {})
-
-        def _move_reactor(step: int):
-            st.session_state["batch_selected_reactor"] = _cycle(
-                reactors,
-                st.session_state.get("batch_selected_reactor", reactors[0]),
-                step,
-            )
 
         control_col, phase_col = st.columns(2, gap="large")
         with control_col:
@@ -307,34 +469,6 @@ if stats_df is not None and batch_options is not None:
                 batch_options.get("smooth_mode", "fast")
             )
 
-        def _build_effective_options_from_widgets() -> tuple[dict, dict]:
-            options_refit = dict(batch_options)
-            options_refit["min_od_increase"] = float(st.session_state[rp_min_od_key])
-            options_refit["min_growth_rate"] = float(st.session_state[rp_min_gr_key])
-            options_refit["min_signal_to_noise"] = float(
-                st.session_state[rp_min_snr_key]
-            )
-            options_refit["min_data_points"] = int(st.session_state[rp_min_dp_key])
-
-            analysis_params = {
-                "min_od_increase": options_refit["min_od_increase"],
-                "min_growth_rate": options_refit["min_growth_rate"],
-                "min_signal_to_noise": options_refit["min_signal_to_noise"],
-                "min_data_points": options_refit["min_data_points"],
-            }
-            method = piogrowth.analyze.growth_method_from_model(
-                batch_options["selected_model"]
-            )
-            if method == "Sliding Window":
-                options_refit["n_window_size"] = int(st.session_state[rp_window_key])
-                analysis_params["window_points"] = int(st.session_state[rp_window_key])
-            elif method == "Spline":
-                options_refit["smooth_mode"] = piogrowth.analyze.normalize_smooth(
-                    st.session_state[rp_smooth_key]
-                )
-                analysis_params["smooth"] = options_refit["smooth_mode"]
-            return options_refit, analysis_params
-
         with phase_col:
             with st.container(border=True):
                 t_min, t_max = float(t_all.min()), float(t_all.max())
@@ -366,118 +500,6 @@ if stats_df is not None and batch_options is not None:
                 stats_df.loc[selected_reactor, "max_od"] = float(max_od)
 
                 action_col1, action_col2, action_col3 = st.columns(3)
-
-                def _on_no_growth():
-                    new_stats = gc.inference.bad_fit_stats()
-                    new_stats["no_growth_reason"] = "manually assigned"
-                    new_stats["model_name"] = batch_options["selected_model"]
-                    piogrowth.analyze.update_reactor_stats(
-                        stats_df, selected_reactor, new_stats
-                    )
-                    fit_cache.pop(selected_reactor, None)
-                    selected_fit_times_map[selected_reactor] = t_all.tolist()
-                    used_params_map[selected_reactor] = (
-                        piogrowth.analyze.default_analysis_params(batch_options)
-                    )
-                    st.session_state["batch_analysis_summary_df"] = stats_df
-                    st.session_state["batch_analysis_fit_cache"] = fit_cache
-                    st.session_state["batch_selected_fit_times"] = (
-                        selected_fit_times_map
-                    )
-                    st.session_state["batch_analysis_used_params"] = used_params_map
-
-                def _on_reanalyse():
-                    options_refit, analysis_params = (
-                        _build_effective_options_from_widgets()
-                    )
-                    used_times = selected_fit_times_map.get(selected_reactor)
-                    if used_times:
-                        t_refit, y_refit = piogrowth.analyze.collect_selected_series(
-                            s, np.asarray(used_times, dtype=float)
-                        )
-                        if t_refit.size < 2:
-                            t_refit, y_refit = t_all, y_all
-                            used_times = t_all.tolist()
-                    else:
-                        t_refit, y_refit = t_all, y_all
-                        used_times = t_all.tolist()
-
-                    fit_result_new, stats_new = piogrowth.analyze.fit_single_series(
-                        t_refit, y_refit, options_refit
-                    )
-                    stats_new["exp_phase_start"] = float(lag_end)
-                    stats_new["exp_phase_end"] = float(exp_end)
-                    stats_new["max_od"] = float(max_od)
-                    fit_cache[selected_reactor] = fit_result_new
-                    piogrowth.analyze.update_reactor_stats(
-                        stats_df, selected_reactor, stats_new
-                    )
-                    selected_fit_times_map[selected_reactor] = used_times
-                    used_params_map[selected_reactor] = analysis_params
-                    st.session_state["batch_analysis_summary_df"] = stats_df
-                    st.session_state["batch_analysis_fit_cache"] = fit_cache
-                    st.session_state["batch_selected_fit_times"] = (
-                        selected_fit_times_map
-                    )
-                    st.session_state["batch_analysis_used_params"] = used_params_map
-
-                def _on_defaults():
-                    st.session_state[rp_min_od_key] = float(
-                        batch_options.get("min_od_increase", 0.05)
-                    )
-                    st.session_state[rp_min_gr_key] = float(
-                        batch_options.get("min_growth_rate", 0.001)
-                    )
-                    st.session_state[rp_min_snr_key] = float(
-                        batch_options.get("min_signal_to_noise", 1.0)
-                    )
-                    st.session_state[rp_min_dp_key] = int(
-                        batch_options.get("min_data_points", 5)
-                    )
-                    st.session_state[rp_window_key] = int(
-                        batch_options.get("n_window_size", 10)
-                    )
-                    st.session_state[rp_smooth_key] = (
-                        piogrowth.analyze.normalize_smooth(
-                            batch_options.get("smooth_mode", "fast")
-                        )
-                    )
-
-                    fit_result_new, stats_new = piogrowth.analyze.fit_single_series(
-                        t_all, y_all, batch_options
-                    )
-                    stats_new["exp_phase_start"] = float(lag_end)
-                    stats_new["exp_phase_end"] = float(exp_end)
-                    stats_new["max_od"] = float(max_od)
-                    fit_cache[selected_reactor] = fit_result_new
-                    piogrowth.analyze.update_reactor_stats(
-                        stats_df, selected_reactor, stats_new
-                    )
-                    selected_fit_times_map[selected_reactor] = t_all.tolist()
-                    used_params_map.pop(selected_reactor, None)
-                    st.session_state["batch_analysis_summary_df"] = stats_df
-                    st.session_state["batch_analysis_fit_cache"] = fit_cache
-                    st.session_state["batch_selected_fit_times"] = (
-                        selected_fit_times_map
-                    )
-                    st.session_state["batch_analysis_used_params"] = used_params_map
-
-                def _on_exclude():
-                    fit_cache.pop(selected_reactor, None)
-                    selected_fit_times_map.pop(selected_reactor, None)
-                    used_params_map.pop(selected_reactor, None)
-                    if selected_reactor in stats_df.index:
-                        stats_df.drop(index=selected_reactor, inplace=True)
-                    remaining = [c for c in df_rolling.columns if c in stats_df.index]
-                    if remaining:
-                        st.session_state["batch_selected_reactor"] = remaining[0]
-                    st.session_state["batch_analysis_summary_df"] = stats_df
-                    st.session_state["batch_analysis_fit_cache"] = fit_cache
-                    st.session_state["batch_selected_fit_times"] = (
-                        selected_fit_times_map
-                    )
-                    st.session_state["batch_analysis_used_params"] = used_params_map
-                    st.rerun()
 
                 with action_col1:
                     st.button(
@@ -687,30 +709,6 @@ if stats_df is not None and batch_options is not None:
             height=600,
         )
         chart_key = f"batch_lasso_fit_{selected_reactor}"
-
-        def _on_lasso_select():
-            xs = piogrowth.analyze.get_selected_times_from_event(
-                st.session_state.get(chart_key)
-            )
-            if xs.size < 2:
-                return
-            refit_t, refit_y = piogrowth.analyze.collect_selected_series(s, xs)
-            if refit_t.size < 2:
-                return
-            options_refit, analysis_params = _build_effective_options_from_widgets()
-            fit_result_new, stats_new = piogrowth.analyze.fit_single_series(
-                refit_t, refit_y, options_refit
-            )
-            fit_cache[selected_reactor] = fit_result_new
-            piogrowth.analyze.update_reactor_stats(
-                stats_df, selected_reactor, stats_new
-            )
-            selected_fit_times_map[selected_reactor] = refit_t.tolist()
-            used_params_map[selected_reactor] = analysis_params
-            st.session_state["batch_analysis_summary_df"] = stats_df
-            st.session_state["batch_analysis_fit_cache"] = fit_cache
-            st.session_state["batch_selected_fit_times"] = selected_fit_times_map
-            st.session_state["batch_analysis_used_params"] = used_params_map
 
         st.plotly_chart(
             fig,
