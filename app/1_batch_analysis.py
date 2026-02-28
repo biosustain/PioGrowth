@@ -92,6 +92,40 @@ def _on_no_growth(
     st.session_state["batch_analysis_used_params"] = used_params_map
 
 
+def _build_effective_options_from_widgets(
+    batch_options,
+    rp_min_od_key,
+    rp_min_gr_key,
+    rp_min_snr_key,
+    rp_min_dp_key,
+    rp_window_key,
+    rp_smooth_key,
+) -> tuple[dict, dict]:
+    options_refit = dict(batch_options)
+    options_refit["min_od_increase"] = float(st.session_state[rp_min_od_key])
+    options_refit["min_growth_rate"] = float(st.session_state[rp_min_gr_key])
+    options_refit["min_signal_to_noise"] = float(st.session_state[rp_min_snr_key])
+    options_refit["min_data_points"] = int(st.session_state[rp_min_dp_key])
+
+    analysis_params = {
+        "min_od_increase": options_refit["min_od_increase"],
+        "min_growth_rate": options_refit["min_growth_rate"],
+        "min_signal_to_noise": options_refit["min_signal_to_noise"],
+        "min_data_points": options_refit["min_data_points"],
+    }
+    method = piogrowth.analyze.growth_method_from_model(batch_options["selected_model"])
+    # ? Why are both needed?
+    if method == "Sliding Window":
+        options_refit["n_window_size"] = int(st.session_state[rp_window_key])
+        analysis_params["window_points"] = int(st.session_state[rp_window_key])
+    elif method == "Spline":
+        options_refit["smooth_mode"] = piogrowth.analyze.normalize_smooth(
+            st.session_state[rp_smooth_key]
+        )
+        analysis_params["smooth"] = options_refit["smooth_mode"]
+    return options_refit, analysis_params
+
+
 def _on_reanalyse(
     selected_reactor,
     fit_cache,
@@ -143,6 +177,16 @@ def _on_reanalyse(
     stats_new["exp_phase_end"] = float(exp_end)
     stats_new["max_od"] = float(max_od)
     fit_cache[selected_reactor] = fit_result_new
+    res_no_growth = gc.inference.detect_no_growth(
+        t=t_refit,
+        N=y_refit,
+        growth_stats=stats_new,
+        min_data_points=options_refit["min_data_points"],
+        min_signal_to_noise=options_refit["min_signal_to_noise"],
+        min_od_increase=options_refit["min_od_increase"],
+        min_growth_rate=options_refit["min_growth_rate"],
+    )
+    # print(res_no_growth)
     piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, stats_new)
     selected_fit_times_map[selected_reactor] = used_times
     used_params_map[selected_reactor] = analysis_params
@@ -219,39 +263,6 @@ def _on_exclude(
     st.session_state["batch_selected_fit_times"] = selected_fit_times_map
     st.session_state["batch_analysis_used_params"] = used_params_map
     st.rerun()
-
-
-def _build_effective_options_from_widgets(
-    batch_options,
-    rp_min_od_key,
-    rp_min_gr_key,
-    rp_min_snr_key,
-    rp_min_dp_key,
-    rp_window_key,
-    rp_smooth_key,
-) -> tuple[dict, dict]:
-    options_refit = dict(batch_options)
-    options_refit["min_od_increase"] = float(st.session_state[rp_min_od_key])
-    options_refit["min_growth_rate"] = float(st.session_state[rp_min_gr_key])
-    options_refit["min_signal_to_noise"] = float(st.session_state[rp_min_snr_key])
-    options_refit["min_data_points"] = int(st.session_state[rp_min_dp_key])
-
-    analysis_params = {
-        "min_od_increase": options_refit["min_od_increase"],
-        "min_growth_rate": options_refit["min_growth_rate"],
-        "min_signal_to_noise": options_refit["min_signal_to_noise"],
-        "min_data_points": options_refit["min_data_points"],
-    }
-    method = piogrowth.analyze.growth_method_from_model(batch_options["selected_model"])
-    if method == "Sliding Window":
-        options_refit["n_window_size"] = int(st.session_state[rp_window_key])
-        analysis_params["window_points"] = int(st.session_state[rp_window_key])
-    elif method == "Spline":
-        options_refit["smooth_mode"] = piogrowth.analyze.normalize_smooth(
-            st.session_state[rp_smooth_key]
-        )
-        analysis_params["smooth"] = options_refit["smooth_mode"]
-    return options_refit, analysis_params
 
 
 def _cycle(items, current, step):
@@ -797,6 +808,7 @@ if stats_df is not None and batch_options is not None:
 
         status_col, expander_col = st.columns([2, 5])
         with status_col:
+            # ! to update to use more advanced function.
             if piogrowth.analyze.is_bad_fit(stats):
                 reason = stats.get("no_growth_reason", "No growth detected")
                 st.container(border=True).error(f"**No Growth:** {reason}")
