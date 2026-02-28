@@ -16,8 +16,8 @@ Batch analysis outputs/cache:
 - batch_analysis_fit_cache: Dict[reactor -> fit result] for fast redraw/reuse.
 - batch_selected_fit_times: Dict[reactor -> selected time list] for subset refits.
 - batch_analysis_used_params: Dict[reactor -> analysis parameter overrides].
-  - used for lasso-based re-analysis to store the effective parameters used
-- batch_selection_status: Legacy/auxiliary selection status key cleared on new runs.
+  - used for modifaction for re-analysis to store the effective parameters to use
+    (manually modified)
 
 UI selection/toggle state:
 - batch_selected_reactor: Active reactor/sample shown in Step 2.
@@ -407,9 +407,12 @@ if run_analysis and not no_data_uploaded:
     }
     st.session_state["batch_analysis_fit_cache"] = fit_cache
     # timepoints used for fitting:
-    st.session_state["batch_selected_fit_times"] = {}
-    st.session_state["batch_analysis_used_params"] = {}
-    st.session_state.pop("batch_selection_status", None)
+    # ! only set if not already set.
+    if "batch_selected_fit_times" not in st.session_state:
+        st.session_state["batch_selected_fit_times"] = {}
+    if "batch_analysis_used_params" not in st.session_state:
+        st.session_state["batch_analysis_used_params"] = {}
+    # st.session_state.pop("batch_selection_status", None)
 
 
 stats_df = st.session_state.get("batch_analysis_summary_df")
