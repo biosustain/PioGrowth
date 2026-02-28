@@ -21,12 +21,20 @@ from piogrowth.fit_spline import (  # fit_spline_and_derivatives_one_batch,
 )
 
 
-# page level functions
+########################################################################################
+### Callbacks for buttons and interactions #############################################
 def _on_no_growth(
-    selected_reactor, fit_cache, selected_fit_times_map, used_params_map, t_all
+    selected_reactor: str,
+    fit_cache: dict,
+    selected_fit_times_map: dict,
+    used_params_map: dict,
+    t_all: np.ndarray,
+    stats_df: pd.DataFrame,
+    batch_options: dict,
 ):
     new_stats = gc.inference.bad_fit_stats()
     new_stats["no_growth_reason"] = "manually assigned"
+    new_stats["elapsed_time"] = np.nan
     new_stats["model_name"] = batch_options["selected_model"]
     piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, new_stats)
     # ? what is fit_cache?
@@ -42,13 +50,38 @@ def _on_no_growth(
 
 
 def _on_reanalyse(
-    selected_reactor, fit_cache, selected_fit_times_map, used_params_map, t_all, y_all
+    selected_reactor,
+    fit_cache,
+    selected_fit_times_map,
+    used_params_map,
+    t_all,
+    y_all,
+    series,
+    lag_end,
+    exp_end,
+    max_od,
+    stats_df,
+    batch_options,
+    rp_min_od_key,
+    rp_min_gr_key,
+    rp_min_snr_key,
+    rp_min_dp_key,
+    rp_window_key,
+    rp_smooth_key,
 ):
-    options_refit, analysis_params = _build_effective_options_from_widgets()
+    options_refit, analysis_params = _build_effective_options_from_widgets(
+        batch_options,
+        rp_min_od_key,
+        rp_min_gr_key,
+        rp_min_snr_key,
+        rp_min_dp_key,
+        rp_window_key,
+        rp_smooth_key,
+    )
     used_times = selected_fit_times_map.get(selected_reactor)
     if used_times:
         t_refit, y_refit = piogrowth.analyze.collect_selected_series(
-            s, np.asarray(used_times, dtype=float)
+            series, np.asarray(used_times, dtype=float)
         )
         if t_refit.size < 2:
             t_refit, y_refit = t_all, y_all
@@ -74,12 +107,23 @@ def _on_reanalyse(
 
 
 def _on_defaults(
-    rp_min_od_key,
-    rp_min_gr_key,
-    rp_min_snr_key,
-    rp_min_dp_key,
-    rp_window_key,
-    rp_smooth_key,
+    batch_options: dict,
+    selected_reactor: str,
+    t_all: np.ndarray,
+    y_all: np.ndarray,
+    lag_end: float,
+    exp_end: float,
+    max_od: float,
+    stats_df: pd.DataFrame,
+    fit_cache: dict,
+    selected_fit_times_map: dict,
+    used_params_map: dict,
+    rp_min_od_key: str,
+    rp_min_gr_key: str,
+    rp_min_snr_key: str,
+    rp_min_dp_key: str,
+    rp_window_key: str,
+    rp_smooth_key: str,
 ):
     st.session_state[rp_min_od_key] = float(batch_options.get("min_od_increase", 0.05))
     st.session_state[rp_min_gr_key] = float(batch_options.get("min_growth_rate", 0.001))
@@ -109,7 +153,12 @@ def _on_defaults(
 
 
 def _on_exclude(
-    selected_reactor, fit_cache, selected_fit_times_map, used_params_map, stats_df
+    selected_reactor: str,
+    fit_cache: dict,
+    selected_fit_times_map: dict,
+    used_params_map: dict,
+    stats_df: pd.DataFrame,
+    df_rolling: pd.DataFrame,
 ):
     fit_cache.pop(selected_reactor, None)
     selected_fit_times_map.pop(selected_reactor, None)
@@ -127,6 +176,7 @@ def _on_exclude(
 
 
 def _build_effective_options_from_widgets(
+    batch_options,
     rp_min_od_key,
     rp_min_gr_key,
     rp_min_snr_key,
@@ -177,16 +227,39 @@ def _move_reactor(step: int, reactors):
     )
 
 
-def _on_lasso_select(chart_key: str):
+def _on_lasso_select(
+    chart_key: str,
+    series,
+    selected_reactor,
+    fit_cache,
+    stats_df,
+    selected_fit_times_map,
+    used_params_map,
+    batch_options,
+    rp_min_od_key,
+    rp_min_gr_key,
+    rp_min_snr_key,
+    rp_min_dp_key,
+    rp_window_key,
+    rp_smooth_key,
+):
     xs = piogrowth.analyze.get_selected_times_from_event(
         st.session_state.get(chart_key)
     )
     if xs.size < 2:
         return
-    refit_t, refit_y = piogrowth.analyze.collect_selected_series(s, xs)
+    refit_t, refit_y = piogrowth.analyze.collect_selected_series(series, xs)
     if refit_t.size < 2:
         return
-    options_refit, analysis_params = _build_effective_options_from_widgets()
+    options_refit, analysis_params = _build_effective_options_from_widgets(
+        batch_options=batch_options,
+        rp_min_od_key=rp_min_od_key,
+        rp_min_gr_key=rp_min_gr_key,
+        rp_min_snr_key=rp_min_snr_key,
+        rp_min_dp_key=rp_min_dp_key,
+        rp_window_key=rp_window_key,
+        rp_smooth_key=rp_smooth_key,
+    )
     fit_result_new, stats_new = piogrowth.analyze.fit_single_series(
         refit_t, refit_y, options_refit
     )
@@ -246,7 +319,7 @@ with st.container(border=True):
     render_parameter_calculation_table_upload_style(analysis_options)
     run_analysis = st.button("Run Analysis", type="primary", width="stretch")
 
-### Render after from submission    ####################################################
+### Analyse data after form submission    ##############################################
 if run_analysis and not no_data_uploaded:
     selected_model = analysis_options["selected_model"]
     spline_smoothing_value = analysis_options["spline_smoothing_value"]
@@ -297,7 +370,13 @@ if run_analysis and not no_data_uploaded:
 stats_df = st.session_state.get("batch_analysis_summary_df")
 batch_options = st.session_state.get("batch_analysis_options")
 
+
+########################################################################################
+### Display results and interactive plot ###############################################
+# ToDo: remove one level of indentation in separate PR
 if stats_df is not None and batch_options is not None:
+    # Step 2: Review results, interactively select points to re-fit, and update stats_df
+    #         and fit_cache accordingly
     with st.container(border=True):
         st.header("Step 2. Review Results")
 
@@ -375,7 +454,7 @@ if stats_df is not None and batch_options is not None:
                         "",
                         width="stretch",
                         on_click=_move_reactor,
-                        args=(-1,),
+                        args=(-1, reactors),
                         key="batch_reactor_prev",
                         shortcut="Left",
                         type="primary",
@@ -394,7 +473,7 @@ if stats_df is not None and batch_options is not None:
                         "",
                         width="stretch",
                         on_click=_move_reactor,
-                        args=(+1,),
+                        args=(+1, reactors),
                         key="batch_reactor_next",
                         shortcut="Right",
                         type="primary",
@@ -494,10 +573,10 @@ if stats_df is not None and batch_options is not None:
                             step=float(max(actual_max_od / 120, 1e-6)),
                             key=maxod_key,
                         )
-
-                stats_df.loc[selected_reactor, "exp_phase_start"] = float(lag_end)
-                stats_df.loc[selected_reactor, "exp_phase_end"] = float(exp_end)
-                stats_df.loc[selected_reactor, "max_od"] = float(max_od)
+                # ! _on_no_growth does not work if this is actived
+                # stats_df.loc[selected_reactor, "exp_phase_start"] = float(lag_end)
+                # stats_df.loc[selected_reactor, "exp_phase_end"] = float(exp_end)
+                # stats_df.loc[selected_reactor, "max_od"] = float(max_od)
 
                 action_col1, action_col2, action_col3 = st.columns(3)
 
@@ -508,6 +587,15 @@ if stats_df is not None and batch_options is not None:
                         type="primary",
                         key=f"batch_nogrowth__{selected_reactor}",
                         on_click=_on_no_growth,
+                        args=(
+                            selected_reactor,
+                            fit_cache,
+                            selected_fit_times_map,
+                            used_params_map,
+                            t_all,
+                            stats_df,
+                            batch_options,
+                        ),
                     )
                 with action_col2:
                     with st.popover("Re-analyse", width="stretch"):
@@ -565,6 +653,26 @@ if stats_df is not None and batch_options is not None:
                                 width="stretch",
                                 key=f"batch_reanalyse__{selected_reactor}",
                                 on_click=_on_reanalyse,
+                                args=(
+                                    selected_reactor,
+                                    fit_cache,
+                                    selected_fit_times_map,
+                                    used_params_map,
+                                    t_all,
+                                    y_all,
+                                    s,
+                                    lag_end,
+                                    exp_end,
+                                    max_od,
+                                    stats_df,
+                                    batch_options,
+                                    rp_min_od_key,
+                                    rp_min_gr_key,
+                                    rp_min_snr_key,
+                                    rp_min_dp_key,
+                                    rp_window_key,
+                                    rp_smooth_key,
+                                ),
                             )
                         with defaults_col:
                             st.button(
@@ -573,6 +681,25 @@ if stats_df is not None and batch_options is not None:
                                 type="primary",
                                 key=f"batch_restore_defaults__{selected_reactor}",
                                 on_click=_on_defaults,
+                                args=(
+                                    batch_options,
+                                    selected_reactor,
+                                    t_all,
+                                    y_all,
+                                    lag_end,
+                                    exp_end,
+                                    max_od,
+                                    stats_df,
+                                    fit_cache,
+                                    selected_fit_times_map,
+                                    used_params_map,
+                                    rp_min_od_key,
+                                    rp_min_gr_key,
+                                    rp_min_snr_key,
+                                    rp_min_dp_key,
+                                    rp_window_key,
+                                    rp_smooth_key,
+                                ),
                             )
                 with action_col3:
                     st.button(
@@ -581,6 +708,14 @@ if stats_df is not None and batch_options is not None:
                         type="tertiary",
                         key=f"batch_exclude__{selected_reactor}",
                         on_click=_on_exclude,
+                        args=(
+                            selected_reactor,
+                            fit_cache,
+                            selected_fit_times_map,
+                            used_params_map,
+                            stats_df,
+                            df_rolling,
+                        ),
                     )
 
         selected_fit_times = selected_fit_times_map.get(selected_reactor)
@@ -714,11 +849,28 @@ if stats_df is not None and batch_options is not None:
             fig,
             key=chart_key,
             selection_mode="lasso",
-            on_select=_on_lasso_select,
+            on_select=lambda: _on_lasso_select(
+                chart_key,
+                s,
+                selected_reactor,
+                fit_cache,
+                stats_df,
+                selected_fit_times_map,
+                used_params_map,
+                batch_options,
+                rp_min_od_key,
+                rp_min_gr_key,
+                rp_min_snr_key,
+                rp_min_dp_key,
+                rp_window_key,
+                rp_smooth_key,
+            ),
             width="stretch",
         )
 
+    # Step 3: Overview of results and option to download summary statistics
     with st.container(border=True):
+
         st.header("Step 3. Overview and Download Results")
         st.write(
             f"The start time was {start_time}. Timepoints are relative to this start time."
