@@ -1,3 +1,46 @@
+"""Batch analysis page for interactive growth-model fitting.
+
+Session state entries used in this module
+-----------------------------------------
+Global/shared input data:
+- USE_ELAPSED_TIME_FOR_PLOTS: Global plotting mode flag.
+- df_time_map: Optional time mapping table from uploaded data.
+- df_rolling: Rolling-median OD dataframe used as analysis input.
+- start_time: Experiment start timestamp used in plot labels/download text.
+- DEFAULT_XLABEL_TPS: Default x-axis label for timepoint mode.
+- DEFAULT_XLABEL_REL: Default x-axis label for elapsed-time mode.
+
+Batch analysis outputs/cache:
+- batch_analysis_summary_df: Per-reactor summary statistics dataframe.
+- batch_analysis_options: Effective analysis options from Step 1.
+- batch_analysis_fit_cache: Dict[reactor -> fit result] for fast redraw/reuse.
+- batch_selected_fit_times: Dict[reactor -> selected time list] for subset refits.
+- batch_analysis_used_params: Dict[reactor -> analysis parameter overrides].
+  - used for lasso-based re-analysis to store the effective parameters used
+- batch_selection_status: Legacy/auxiliary selection status key cleared on new runs.
+
+UI selection/toggle state:
+- batch_selected_reactor: Active reactor/sample shown in Step 2.
+- batch_show_phase_boundaries: Toggle for phase-boundary annotations.
+- batch_show_umax_point: Toggle for max growth point/marker annotations.
+- batch_show_max_od: Toggle for max OD annotation.
+- batch_show_baseline_od: Toggle for baseline OD annotation.
+- batch_show_tangent: Toggle for tangent-at-u_max annotation.
+- batch_show_fitted_model: Toggle for fitted model curve.
+- batch_log_scale: Toggle for linear vs log plotting.
+
+Per-reactor dynamic keys (created from selected reactor id):
+- batch_phase__{reactor}: Tuple[lag_end, exp_end] slider state.
+- batch_maxod__{reactor}: Max OD slider state.
+- batch_rp_min_od__{reactor}: Re-analysis threshold (min OD increase).
+- batch_rp_min_gr__{reactor}: Re-analysis threshold (min growth rate).
+- batch_rp_min_snr__{reactor}: Re-analysis threshold (min signal-to-noise).
+- batch_rp_min_dp__{reactor}: Re-analysis threshold (min data points).
+- batch_rp_window__{reactor}: Re-analysis window size (sliding window method).
+- batch_rp_smooth__{reactor}: Re-analysis spline smooth mode (spline method).
+- batch_lasso_fit_{reactor}: Plotly lasso selection event payload key.
+"""
+
 import inspect
 
 import growthcurves as gc
@@ -321,9 +364,10 @@ with st.container(border=True):
 
 ### Analyse data after form submission    ##############################################
 if run_analysis and not no_data_uploaded:
+    # ? Analysis option is unpacked and then readded to session state
     selected_model = analysis_options["selected_model"]
     spline_smoothing_value = analysis_options["spline_smoothing_value"]
-    smooth_mode = analysis_options.get("smooth_mode", "fast")
+    smooth_mode = analysis_options.get("smooth_mode", "fast")  # ? only one with update
     n_fits_sliding_window = analysis_options["n_fits"]
     n_window_size = analysis_options["window_points"]
     phase_boundary_method = analysis_options["phase_boundary_method"]
@@ -362,6 +406,7 @@ if run_analysis and not no_data_uploaded:
         "min_growth_rate": min_growth_rate,
     }
     st.session_state["batch_analysis_fit_cache"] = fit_cache
+    # timepoints used for fitting:
     st.session_state["batch_selected_fit_times"] = {}
     st.session_state["batch_analysis_used_params"] = {}
     st.session_state.pop("batch_selection_status", None)
