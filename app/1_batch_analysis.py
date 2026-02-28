@@ -921,7 +921,8 @@ if stats_df is not None and batch_options is not None:
 
         st.header("Step 3. Overview and Download Results")
         st.write(
-            f"The start time was {start_time}. Timepoints are relative to this start time."
+            f"The start time was {start_time}. "
+            " Timepoints are relative to this start time."
         )
         st.dataframe(stats_df, width="stretch")
         st.write("")
