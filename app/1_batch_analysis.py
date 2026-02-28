@@ -112,8 +112,11 @@ def _on_reanalyse(
     rp_window_key,
     rp_smooth_key,
 ):
+    # update batch_options with used_params_map
+    _batch_options = dict(batch_options)
+    _batch_options.update(used_params_map.get(selected_reactor, {}))
     options_refit, analysis_params = _build_effective_options_from_widgets(
-        batch_options,
+        _batch_options,
         rp_min_od_key,
         rp_min_gr_key,
         rp_min_snr_key,
