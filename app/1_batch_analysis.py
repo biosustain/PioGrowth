@@ -16,7 +16,7 @@ Batch analysis outputs/cache:
 - batch_analysis_fit_cache: Dict[reactor -> fit result] for fast redraw/reuse.
 - batch_selected_fit_times: Dict[reactor -> selected time list] for subset refits.
 - batch_analysis_used_params: Dict[reactor -> analysis parameter overrides].
-  - used for modifaction for re-analysis to store the effective parameters to use
+  - used for modification for re-analysis to store the effective parameters to use
     (manually modified)
 
 UI selection/toggle state:
