@@ -231,11 +231,12 @@ def _on_reanalyse(
     )
 
     # piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, stats_new)
- 
+
     # st.session_state["batch_analysis_summary_df"] = stats_df
     # st.session_state["batch_analysis_fit_cache"] = fit_cache
     # st.session_state["batch_selected_fit_times"] = selected_fit_times_map
     # st.session_state["batch_analysis_used_params"] = used_params_map
+
 
 def _on_lasso_select(
     chart_key: str,
@@ -415,7 +416,12 @@ smoothing_range = get_smoothing_range(len(df_rolling))
 with st.container(border=True):
     st.header("Step 1. Configure Analysis Options")
     analysis_options = render_upload_style_analysis_options(
-        s_min=smoothing_range.s_min, s_max=smoothing_range.s_max
+        s_min=smoothing_range.s_min,
+        s_max=smoothing_range.s_max,
+        min_window_points=15,
+        max_window_points=500,
+        default_window_points=150,
+        window_step_size=5,
     )
     render_parameter_calculation_table_upload_style(analysis_options)
     run_analysis = st.button("Run Analysis", type="primary", width="stretch")

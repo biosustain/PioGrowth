@@ -46,7 +46,8 @@ def render_options_for_growthcurve_fitting(s_min=3, s_max=1000, s_default=1000):
     phase_boundary_method = tangent_cols[0].radio(
         "Select method for exponential phase detection (default recommended):",
         ["default", "tangent", "threshold"],
-        help=("""
+        help=(
+            """
             Default picks for parametric models the threshold method and
             for phenomenological models, the sliding window and spline method the
             tangent method.
@@ -55,7 +56,8 @@ def render_options_for_growthcurve_fitting(s_min=3, s_max=1000, s_default=1000):
 
             - "threshold": Threshold-based method using fractions of μ_max
             - "tangent": Tangent line method at point of maximum growth rate
-            """),
+            """
+        ),
         index=0,
     )
     exp_frac = tangent_cols[1].slider(
@@ -172,17 +174,24 @@ def _ui_model_selection_upload_style():
 
 
 def _ui_method_params_upload_style(
-    growth_method: str, param_col, s_min: int, s_max: int
+    growth_method: str,
+    param_col,
+    s_min: int,
+    s_max: int,
+    min_window_points=5,
+    max_window_points=200,
+    default_window_points=10,
+    window_step_size=1,
 ):
     """Render method-specific controls and convert to spline_s/window_points values."""
     with param_col:
         if growth_method == "Sliding Window":
             window_points = st.number_input(
                 "Window size (points)",
-                5,
-                200,
-                10,
-                1,
+                min_window_points,
+                max_window_points,
+                default_window_points,
+                window_step_size,
                 help=(
                     "Number of consecutive data points used for sliding window "
                     "linear fit to determine maximum growth rate."
@@ -191,7 +200,7 @@ def _ui_method_params_upload_style(
             )
             smooth_mode = "fast"
         elif growth_method == "Spline":
-            window_points = 10
+            window_points = default_window_points
             smooth_mode = st.radio(
                 "Spline fitting mode",
                 options=["fast", "slow"],
@@ -205,7 +214,7 @@ def _ui_method_params_upload_style(
                 key="batch_spline_mode",
             )
         else:
-            window_points = 10
+            window_points = default_window_points
             smooth_mode = "fast"
 
     if growth_method == "Spline":
@@ -516,7 +525,14 @@ div.param-calc-table th {{
     )
 
 
-def render_upload_style_analysis_options(s_min=3, s_max=1000):
+def render_upload_style_analysis_options(
+    s_min=3,
+    s_max=1000,
+    min_window_points=5,
+    max_window_points=200,
+    default_window_points=10,
+    window_step_size=1,
+):
     """Render analysis options aligned with TheGrowthAnalysisApp upload page."""
     model_col, boundary_col = st.columns(2, gap="large")
 
@@ -525,7 +541,16 @@ def render_upload_style_analysis_options(s_min=3, s_max=1000):
             _ui_model_selection_upload_style()
         )
         window_points, smooth_mode, spline_smoothing_value = (
-            _ui_method_params_upload_style(growth_method, param_col, s_min, s_max)
+            _ui_method_params_upload_style(
+                growth_method,
+                param_col,
+                s_min,
+                s_max,
+                min_window_points,
+                max_window_points,
+                default_window_points,
+                window_step_size,
+            )
         )
         st.write("")
         st.write("")
