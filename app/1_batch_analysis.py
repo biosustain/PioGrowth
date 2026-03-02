@@ -18,6 +18,7 @@ Batch analysis outputs/cache:
 - batch_analysis_used_params: Dict[reactor -> analysis parameter overrides].
   - used for modification for re-analysis to store the effective parameters to use
     (manually modified)
+ToDo: Check if all of these are used and needed
 
 UI selection/toggle state:
 - batch_selected_reactor: Active reactor/sample shown in Step 2.
@@ -138,9 +139,6 @@ def _on_defaults(
     selected_reactor: str,
     t_all: np.ndarray,
     y_all: np.ndarray,
-    lag_end: float,
-    exp_end: float,
-    max_od: float,
     stats_df: pd.DataFrame,
     fit_cache: dict,
     selected_fit_times_map: dict,
@@ -167,7 +165,7 @@ def _on_defaults(
         t=t_all,
         y=y_all,
         options_refit=batch_options,
-        analysis_params=batch_options,
+        analysis_params=piogrowth.analyze.default_analysis_params(batch_options),
         selected_reactor=selected_reactor,
         fit_cache=fit_cache,
         stats_df=stats_df,
@@ -222,7 +220,7 @@ def _on_reanalyse(
     else:
         t_refit, y_refit = t_all, y_all
         used_times = t_all.tolist()
-
+    # ToDo: lag_end and exp_end are not updated in table after manuel adjustment
     _fit(
         t=t_refit,
         y=y_refit,
@@ -233,6 +231,9 @@ def _on_reanalyse(
         stats_df=stats_df,
         selected_fit_times_map=selected_fit_times_map,
         used_params_map=used_params_map,
+        exp_phase_start=lag_end,
+        exp_phase_end=exp_end,
+        max_od=max_od,
     )
 
     # piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, stats_new)
@@ -304,7 +305,7 @@ def _fit(
     max_od=None,
 ):
     fit_, stats_ = piogrowth.analyze.fit_single_series(t, y, options_refit)
-    #  allows manuel overwriting of these three parameters based on _reanalyse panel
+    #  allows manual overwriting of these three parameters based on _reanalyse panel
     if exp_phase_start is not None:
         stats_["exp_phase_start"] = float(exp_phase_start)
     if exp_phase_end is not None:
