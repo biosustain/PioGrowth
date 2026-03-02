@@ -1,12 +1,15 @@
 """Functions used in 0_upload_data.py and 2_turbiostat.py"""
 
 import inspect
+import logging
 import time
 
 import growthcurves as gc
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+
+logger = logging.getLogger(__name__)
 
 NON_PARAMETRIC_FIT_PARAMS = set(
     inspect.signature(gc.non_parametric.fit_non_parametric).parameters
@@ -64,6 +67,10 @@ def run_model_fitting_on_df_compat(
     phase_boundary_method: str,
     lag_cutoff: float,
     exp_cutoff: float,
+    min_data_points: int,
+    min_signal_to_noise: float,
+    min_od_increase: float,
+    min_growth_rate: float,
 ) -> tuple[pd.DataFrame, dict]:
     """Run fitting across reactors using gc.fit_model in a version-compatible way."""
     stats_df = {}
@@ -79,20 +86,38 @@ def run_model_fitting_on_df_compat(
             spline_s=spline_s,
             smooth_mode=smooth_mode,
         )
+        _t = s.index.to_numpy()
+        _n = s.to_numpy()
 
         fit_result, stats = gc.fit_model(
-            t=s.index.to_numpy(),
-            N=s.to_numpy(),
+            t=_t,
+            N=_n,
             model_name=model_name,
             lag_threshold=lag_cutoff,
             exp_threshold=exp_cutoff,
             phase_boundary_method=phase_boundary_method,
             **fit_kwargs,
         )
+        res_no_growth = gc.inference.detect_no_growth(
+            t=_t,
+            N=_n,
+            growth_stats=stats,
+            min_data_points=min_data_points,
+            min_signal_to_noise=min_signal_to_noise,
+            min_od_increase=min_od_increase,
+            min_growth_rate=min_growth_rate,
+        )
+        if res_no_growth["is_no_growth"]:
+            # overwrite stats with reason
+            logger.debug(res_no_growth)
+            stats = gc.inference.bad_fit_stats()
+            stats["no_growth_reason"] = res_no_growth.get(
+                "reason", "No growth detected"
+            )
+        fit_cache[col] = fit_result
         stats["elapsed_time"] = time.time() - t_start
         stats["model_name"] = model_name
         stats_df[col] = stats
-        fit_cache[col] = fit_result
 
     return pd.DataFrame(stats_df).T, fit_cache
 

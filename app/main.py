@@ -53,6 +53,16 @@ with st.sidebar:
         )
     st.caption(f"PioGrowth v{piogrowth.__version__}")
 
+    debug_mode = st.checkbox(
+        "Debug Mode",
+        value=st.session_state.get("debug_mode", False),
+        help=(
+            "Enable debug mode for more verbose logging and"
+            " additional information in the app."
+        ),
+    )
+    st.session_state["debug_mode"] = debug_mode
+
 
 # build multi-page app
 pg = st.navigation(
