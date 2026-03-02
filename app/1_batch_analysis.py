@@ -434,53 +434,26 @@ with st.container(border=True):
 
 ### Analyse data after form submission    ##############################################
 if run_analysis and not no_data_uploaded:
-    # ? Analysis option is unpacked and then readded to session state
-    selected_model = analysis_options["selected_model"]
-    spline_smoothing_value = analysis_options["spline_smoothing_value"]
-    smooth_mode = analysis_options.get("smooth_mode", "fast")  # ? only one with update
-    n_fits_sliding_window = analysis_options["n_fits"]
-    n_window_size = analysis_options["window_points"]
-    phase_boundary_method = analysis_options["phase_boundary_method"]
-    lag_cutoff = analysis_options["lag_cutoff"]
-    exp_cutoff = analysis_options["exp_cutoff"]
-    min_data_points = analysis_options["min_data_points"]
-    min_signal_to_noise = analysis_options["min_signal_to_noise"]
-    min_od_increase = analysis_options["min_od_increase"]
-    min_growth_rate = analysis_options["min_growth_rate"]
-
     stats_df_new, fit_cache = piogrowth.analyze.run_model_fitting_on_df_compat(
         df_rolling,
-        model_name=selected_model,
-        n_fits=n_fits_sliding_window,
-        spline_s=spline_smoothing_value,
-        smooth_mode=smooth_mode,
-        window_points=n_window_size,
-        phase_boundary_method=phase_boundary_method,
-        lag_cutoff=lag_cutoff,
-        exp_cutoff=exp_cutoff,
-        min_data_points=min_data_points,
-        min_signal_to_noise=min_signal_to_noise,
-        min_od_increase=min_od_increase,
-        min_growth_rate=min_growth_rate,
+        model_name=analysis_options["selected_model"],
+        n_fits=analysis_options["n_fits"],
+        spline_s=analysis_options["spline_smoothing_value"],
+        smooth_mode=analysis_options.get("smooth_mode", "fast"),
+        window_points=analysis_options["window_points"],
+        phase_boundary_method=analysis_options["phase_boundary_method"],
+        lag_cutoff=analysis_options["lag_cutoff"],
+        exp_cutoff=analysis_options["exp_cutoff"],
+        min_data_points=analysis_options["min_data_points"],
+        min_signal_to_noise=analysis_options["min_signal_to_noise"],
+        min_od_increase=analysis_options["min_od_increase"],
+        min_growth_rate=analysis_options["min_growth_rate"],
     )
 
     st.session_state["batch_analysis_summary_df"] = stats_df_new
-    st.session_state["batch_analysis_options"] = {
-        "selected_model": selected_model,
-        "spline_smoothing_value": spline_smoothing_value,
-        "smooth_mode": smooth_mode,
-        "n_fits_sliding_window": n_fits_sliding_window,
-        "n_window_size": n_window_size,
-        "phase_boundary_method": phase_boundary_method,
-        "lag_cutoff": lag_cutoff,
-        "exp_cutoff": exp_cutoff,
-        "min_data_points": min_data_points,
-        "min_signal_to_noise": min_signal_to_noise,
-        "min_od_increase": min_od_increase,
-        "min_growth_rate": min_growth_rate,
-    }
+    st.session_state["batch_analysis_options"] = analysis_options
     st.session_state["batch_analysis_fit_cache"] = fit_cache
-    # timepoints used for fitting:
+    # ?timepoints used for fitting: Is it needed?
     # ! only set if not already set.
     if "batch_selected_fit_times" not in st.session_state:
         st.session_state["batch_selected_fit_times"] = {}
