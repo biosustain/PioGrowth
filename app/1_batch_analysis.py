@@ -42,6 +42,7 @@ Per-reactor dynamic keys (created from selected reactor id):
 """
 
 import inspect
+import logging
 
 import growthcurves as gc
 import growthcurves.plot as gc_plot
@@ -62,6 +63,10 @@ import piogrowth.analyze
 from piogrowth.fit_spline import (  # fit_spline_and_derivatives_one_batch,
     get_smoothing_range,
 )
+
+logger = logging.getLogger(__name__)
+if st.session_state.get("debug_mode", False):
+    logger.setLevel(logging.DEBUG)
 
 
 ########################################################################################
@@ -317,7 +322,7 @@ def _fit(
         min_growth_rate=options_refit["min_growth_rate"],
     )
     if res_no_growth["is_no_growth"]:
-        print(res_no_growth)
+        logger.debug(res_no_growth)
         stats_ = gc.inference.bad_fit_stats()
         stats_["no_growth_reason"] = res_no_growth.get("reason", "No growth detected")
         stats_["elapsed_time"] = np.nan
@@ -1034,14 +1039,14 @@ if stats_df is not None and batch_options is not None:
                 type="primary",
                 width="stretch",
             )
-    with st.container(border=True):
-        st.header("Inspect")
-        st.write("Used parameters map for re-analysis selection:")
-        st.write(st.session_state["batch_analysis_used_params"])
-        st.write("which updates general options from form for a given reactor:")
-        st.write(batch_options)
-        st.write("Fit cache (contains fitted curve data for each reactor)")
-        st.write(st.session_state["batch_analysis_fit_cache"])
-        # ! is this the best format to store the lasso selected points?
-        st.write("Selected fit times map for lasso point selection:")
-        st.write(st.session_state["batch_selected_fit_times"])
+    if st.session_state.get("debug_mode", False):
+        with st.expander("Developer inspect (session state)", expanded=False):
+            st.write("Used parameters map for re-analysis selection:")
+            st.write(st.session_state.get("batch_analysis_used_params", {}))
+            st.write("which updates general options from form for a given reactor:")
+            st.write(batch_options)
+            st.write("Fit cache (contains fitted curve data for each reactor)")
+            st.write(st.session_state.get("batch_analysis_fit_cache", {}))
+            # ! is this the best format to store the lasso selected points?
+            st.write("Selected fit times map for lasso point selection:")
+            st.write(st.session_state.get("batch_selected_fit_times", {}))
