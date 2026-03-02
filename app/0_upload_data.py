@@ -482,10 +482,9 @@ if button_pressed:
         with st.spinner("Applying IQR outlier removal..."):
             mask_outliers = df_wide_raw_od_data_filtered.apply(
                 gc.preprocessing.detect_outliers_iqr,
-                args=(
-                    rolling_window,
-                    iqr_range_value,
-                ),
+                raw=False,
+                factor=iqr_range_value,
+                window_size=rolling_window,
             ).astype(bool)
             # st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
             msg += f"- Number of outliers detected: {mask_outliers.sum().sum()}\n"
