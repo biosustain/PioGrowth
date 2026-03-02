@@ -1,3 +1,4 @@
+import growthcurves as gc
 import pandas as pd
 import streamlit as st
 from ui_components import page_header_with_help
@@ -478,24 +479,24 @@ if button_pressed:
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.rolling.html
 
     if filter_by_iqr_range:
-        mask_outliers = (
-            df_wide_raw_od_data_filtered.rolling(
-                rolling_window,
-                min_periods=min_periods,
-                center=True,
-                closed="both",
+        with st.spinner("Applying IQR outlier removal..."):
+            mask_outliers = df_wide_raw_od_data_filtered.apply(
+                gc.preprocessing.detect_outliers_iqr,
+                args=(
+                    rolling_window,
+                    iqr_range_value,
+                ),
+            ).astype(bool)
+            # st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
+            msg += f"- Number of outliers detected: {mask_outliers.sum().sum()}\n"
+            msg += f"   - in detail: {mask_outliers.sum().to_dict()}\n"
+            masked = masked | mask_outliers
+
+            # apply mask to entire dataframe
+
+            df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(
+                mask_outliers
             )
-            .apply(piogrowth.filter.out_of_iqr, kwargs={"factor": iqr_range_value})
-            .astype(bool)
-        )
-        # st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
-        msg += f"- Number of outliers detected: {mask_outliers.sum().sum()}\n"
-        msg += f"   - in detail: {mask_outliers.sum().to_dict()}\n"
-        masked = masked | mask_outliers
-
-        # apply mask to entire dataframe
-
-        df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_outliers)
 
     masked = masked.convert_dtypes()
 
@@ -545,3 +546,5 @@ if button_pressed:
     )
     st.session_state["df_time_map"] = df_time_map
     st.session_state["upload_processing_summary_msg"] = msg
+    st.write("### Data processing summary:")
+    st.write(msg)
