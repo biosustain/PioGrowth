@@ -1,12 +1,15 @@
 """Functions used in 0_upload_data.py and 2_turbiostat.py"""
 
 import inspect
+import logging
 import time
 
 import growthcurves as gc
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+
+logger = logging.getLogger(__name__)
 
 NON_PARAMETRIC_FIT_PARAMS = set(
     inspect.signature(gc.non_parametric.fit_non_parametric).parameters
@@ -106,7 +109,7 @@ def run_model_fitting_on_df_compat(
         )
         if res_no_growth["is_no_growth"]:
             # overwrite stats with reason
-            print(res_no_growth)
+            logger.debug(res_no_growth)
             stats = gc.inference.bad_fit_stats()
             stats["no_growth_reason"] = res_no_growth.get(
                 "reason", "No growth detected"
