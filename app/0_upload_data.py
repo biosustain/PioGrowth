@@ -320,11 +320,13 @@ st.session_state["quantile_max"] = quantile_max
 st.session_state["iqr_range_value"] = iqr_range_value
 st.session_state["rolling_window"] = rolling_window
 st.session_state["round_time"] = round_time
-st.session_state["min_date"] = min_date
-st.session_state["max_date"] = max_date
 st.session_state["update_zero_timepoint"] = update_zero_timepoint
 st.session_state["time_ranges"] = time_ranges
 
+if min_date is not None and max_date is not None:
+    # update data specific options in session state
+    st.session_state["min_date"] = min_date
+    st.session_state["max_date"] = max_date
 ########################################################################################
 # Process data
 
