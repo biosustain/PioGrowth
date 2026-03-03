@@ -194,7 +194,6 @@ with st.container(border=True):
                     "previous one. Downward trends will be removed, but the upward "
                     "trend will be kept from a local minimum."
                 ),
-                # key="remove_downward_trending",
             )
             remove_max = st.checkbox(
                 "Remove maximum OD readings by quantile",
@@ -307,19 +306,8 @@ with st.container(border=True):
             "Apply options to uploaded data", type="primary", width="stretch"
         )
 
-########################################################################################
-# Process data
-
-extra_warn = st.empty()
-
-if custom_id:
-    st.session_state["custom_id"] = custom_id
-
-if button_pressed and file is None and df_raw_od_data is None:
-    extra_warn.warning("No data uploaded.")
-    st.stop()
-
-# remember form values for next time
+### save form state
+# remember form values for next time page is opened
 st.session_state["keep_core_data"] = keep_core_data
 st.session_state["custom_id"] = custom_id
 st.session_state["reactors_selected"] = reactors_selected
@@ -336,6 +324,19 @@ st.session_state["min_date"] = min_date
 st.session_state["max_date"] = max_date
 st.session_state["update_zero_timepoint"] = update_zero_timepoint
 st.session_state["time_ranges"] = time_ranges
+
+########################################################################################
+# Process data
+
+extra_warn = st.empty()
+
+if custom_id:
+    st.session_state["custom_id"] = custom_id
+
+if button_pressed and file is None and df_raw_od_data is None:
+    extra_warn.warning("No data uploaded.")
+    st.stop()
+
 msg = ""
 
 # File Uploaded ########################################################################
