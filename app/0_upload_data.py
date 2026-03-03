@@ -167,7 +167,7 @@ with st.container(border=True):
             remove_negative = st.checkbox(
                 "Set negative OD readings to missing (NaN)",
                 help=(
-                    "Negative values will distor the curve fitting as the logarith is  "
+                    "Negative values will distort the curve fitting as the logarithm is "
                     "set to NaN."
                 ),
                 value=st.session_state.get("remove_negative", False),
@@ -200,7 +200,7 @@ with st.container(border=True):
                 value=st.session_state.get("remove_max", False),
             )
             filter_by_iqr_range = st.checkbox(
-                "Remove outliers by Inter-Quartil-Range (IQR) in rolling window of"
+                "Remove outliers by Inter-Quartile Range (IQR) in rolling window of"
                 " timepoints",
                 value=st.session_state.get("filter_by_iqr_range", False),
             )
@@ -233,7 +233,7 @@ with st.container(border=True):
             "Select time windows for data to be processed. Dates are inferred from "
             "uploaded data. This won't be plotted in red as filtered data, but just "
             "cap the datapoints for reactors outside of the selected windows."
-            "The overall time window bounds the selected time windows for the individual"
+            " The overall time window bounds the selected time windows for the individual"
             " reactors."
         )
         min_date, max_date = None, None
