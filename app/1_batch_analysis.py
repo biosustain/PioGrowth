@@ -622,7 +622,7 @@ with st.container(border=True):
     if rp_min_dp_key not in st.session_state:
         st.session_state[rp_min_dp_key] = int(batch_options.get("min_data_points", 5))
     if rp_window_key not in st.session_state:
-        st.session_state[rp_window_key] = int(batch_options.get("n_window_size", 10))
+        st.session_state[rp_window_key] = int(batch_options.get("window_size", 10))
     if rp_smooth_key not in st.session_state:
         st.session_state[rp_smooth_key] = piogrowth.analyze.normalize_smooth(
             batch_options.get("smooth_mode", "fast")
