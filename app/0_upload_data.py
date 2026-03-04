@@ -532,8 +532,9 @@ if button_pressed:
     if filter_by_iqr_range:
         with st.spinner("Applying IQR outlier removal..."):
             mask_outliers = df_wide_raw_od_data_filtered.apply(
-                gc.preprocessing.detect_outliers_iqr,
+                gc.preprocessing.detect_outliers,
                 raw=False,
+                method="iqr",
                 factor=iqr_range_value,
                 window_size=rolling_window,
             ).astype(bool)
