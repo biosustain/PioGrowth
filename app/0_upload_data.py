@@ -26,6 +26,19 @@ Use this order:
 page_header_with_help("Upload Data", UPLOAD_HELP)
 
 
+def callback_clear_raw_data():
+    st.session_state["df_raw_od_data"] = None
+    st.session_state["df_wide_raw_od_data"] = None
+    st.session_state["df_wide_raw_od_data_filtered"] = None
+    st.session_state["masked"] = None
+    st.session_state["upload_processing_summary_msg"] = None
+    # reset time windows axis and data
+    if "min_date" in st.session_state:
+        del st.session_state["min_date"]
+    if "max_date" in st.session_state:
+        del st.session_state["max_date"]
+
+
 ########################################################################################
 # Upload File section
 with st.container(border=True):
@@ -58,7 +71,7 @@ with st.container(border=True):
     file = st.file_uploader(
         "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
         type=["csv", "txt"],
-        # needs callback to clear session state
+        on_change=callback_clear_raw_data,
     )
     main_options_cols = st.columns([3, 2], gap="medium")
     with main_options_cols[0]:
@@ -250,33 +263,35 @@ with st.container(border=True):
                 st.session_state.get("round_time", 5),
                 step=1,
             )
-        with time_window_cols[1]:
-            if df_raw_od_data is not None:
-                min_date, max_date = st.select_slider(
-                    "Select overall time window (inferred).",
-                    options=df_raw_od_data["timestamp_rounded"],
-                    value=(
-                        st.session_state.get(
-                            "min_date", df_raw_od_data["timestamp_rounded"].min()
-                        ),
-                        st.session_state.get(
-                            "max_date", df_raw_od_data["timestamp_rounded"].max()
-                        ),
-                    ),
-                )
-            else:
-                st.empty()
-        with time_window_cols[2]:
-            update_zero_timepoint = st.checkbox(
-                "Reset T0",
-                value=st.session_state.get("update_zero_timepoint", False),
-                help=(
-                    "If checked, a new zero time is set to the minimum timestamp of the"
-                    " overall time window."
-                ),
-            )
+        # ! move this to data_dashboard page.
+        update_zero_timepoint = None
         time_ranges = {}
         if df_wide_raw_od_data is not None:
+            with time_window_cols[1]:
+                if df_raw_od_data is not None:
+                    min_date, max_date = st.select_slider(
+                        "Select overall time window (inferred).",
+                        options=df_raw_od_data["timestamp_rounded"],
+                        value=(
+                            st.session_state.get(
+                                "min_date", df_raw_od_data["timestamp_rounded"].min()
+                            ),
+                            st.session_state.get(
+                                "max_date", df_raw_od_data["timestamp_rounded"].max()
+                            ),
+                        ),
+                    )
+                else:
+                    st.empty()
+            with time_window_cols[2]:
+                update_zero_timepoint = st.checkbox(
+                    "Reset T0",
+                    value=st.session_state.get("update_zero_timepoint", False),
+                    help=(
+                        "If checked, a new zero time is set to the minimum timestamp of the"
+                        " overall time window."
+                    ),
+                )
             with st.expander("Select time window per reactor"):
                 st.info("Note: Minimum and maximum for slider are reactor specific!")
                 # per reactor, get min and max timestamps
