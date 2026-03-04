@@ -2,6 +2,11 @@
 
 Session state entries used in this module
 -----------------------------------------
+
+Many state entries are prefixed with "batch_" to indicate they are used in this batch
+analysis page and to avoid naming conflicts with other pages. Some entries are dynamic
+keys that are reactor-specific (reactor parameter): `batch_rp_{param}__{reactor}`.
+
 Global/shared input data:
 - USE_ELAPSED_TIME_FOR_PLOTS: Global plotting mode flag.
 - df_time_map: Optional time mapping table from uploaded data.
@@ -68,6 +73,8 @@ from piogrowth.fit_spline import (  # fit_spline_and_derivatives_one_batch,
 logger = logging.getLogger(__name__)
 if st.session_state.get("debug_mode", False):
     logger.setLevel(logging.DEBUG)
+
+st.session_state.setdefault("batch_analysis_options", {})
 
 
 ########################################################################################
@@ -426,11 +433,15 @@ with st.container(border=True):
         s_max=smoothing_range.s_max,
         min_window_points=15,
         max_window_points=500,
-        default_window_points=150,
+        default_window_points=st.session_state["batch_analysis_options"].get(
+            "window_points", 150
+        ),
         window_step_size=5,
     )
     render_parameter_calculation_table_upload_style(analysis_options)
     run_analysis = st.button("Run Analysis", type="primary", width="stretch")
+    # remember of any changes to options
+    st.session_state["batch_analysis_options"] = analysis_options
 
 ### Analyse data after form submission    ##############################################
 if run_analysis and not no_data_uploaded:
