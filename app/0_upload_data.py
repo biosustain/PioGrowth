@@ -1,3 +1,4 @@
+import growthcurves as gc
 import pandas as pd
 import streamlit as st
 from ui_components import page_header_with_help
@@ -23,6 +24,19 @@ Use this order:
 """
 
 page_header_with_help("Upload Data", UPLOAD_HELP)
+
+
+def callback_clear_raw_data():
+    st.session_state["df_raw_od_data"] = None
+    st.session_state["df_wide_raw_od_data"] = None
+    st.session_state["df_wide_raw_od_data_filtered"] = None
+    st.session_state["masked"] = None
+    st.session_state["upload_processing_summary_msg"] = None
+    # reset time windows axis and data
+    if "min_date" in st.session_state:
+        del st.session_state["min_date"]
+    if "max_date" in st.session_state:
+        del st.session_state["max_date"]
 
 
 ########################################################################################
@@ -57,7 +71,7 @@ with st.container(border=True):
     file = st.file_uploader(
         "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
         type=["csv", "txt"],
-        # needs callback to clear session state
+        on_change=callback_clear_raw_data,
     )
     main_options_cols = st.columns([3, 2], gap="medium")
     with main_options_cols[0]:
@@ -157,8 +171,8 @@ with st.container(border=True):
                 options=available_reactors,
                 default=available_reactors,
                 help=(
-                    "All reactors are selected by default. Remove any reactors you do not "
-                    "want analyzed."
+                    "All reactors are selected by default. Remove any reactors you do  "
+                    "not want analyzed."
                 ),
             )
         filter_columns = st.columns(2)
@@ -166,62 +180,63 @@ with st.container(border=True):
             remove_negative = st.checkbox(
                 "Set negative OD readings to missing (NaN)",
                 help=(
-                    "Negative values will distor the curve fitting as the logarith is set to "
-                    "NaN."
+                    "Negative values will distort the curve fitting as the logarithm is "
+                    "set to NaN."
                 ),
-                value=True,
+                value=st.session_state.get("remove_negative", False),
             )
             fill_na = st.checkbox(
                 "Impute missing bioscatter readings using forward and backward filling",
                 help=(
                     "If checked, missing values will be "
-                    "imputed using forward fill and backward fill. This is recommended if you "
-                    "expect only a few missing or negative values that are likely due to "
-                    "measurement errors.  Note that this will include negative zeros which"
-                    " were previously removed using the above option."
+                    "imputed using forward fill and backward fill. This is recommended "
+                    "if you expect only a few missing or negative values that are "
+                    "likely due to measurement errors.  Note that this will include "
+                    "negative zeros which were previously removed using the above "
+                    "option."
                 ),
-                value=False,
+                value=st.session_state.get("fill_na", False),
             )
             # ! move to after smoothing is applied?
             remove_downward_trending = st.checkbox(
-                label="Remove downward trending data points (negative OD changes) globally after"
-                " smoothing the data.",
-                value=False,
+                label="Remove downward trending data points (negative OD changes) "
+                " globally after smoothing the data.",
+                value=st.session_state.get("remove_downward_trending", False),
                 help=(
-                    "This can be used to remove data points that are smaller than a previous "
-                    "one. Downward trends will be removed, but the upward trend will be kept "
-                    "from a local minimum."
+                    "This can be used to remove data points that are smaller than a "
+                    "previous one. Downward trends will be removed, but the upward "
+                    "trend will be kept from a local minimum."
                 ),
-                key="remove_downward_trending",
             )
             remove_max = st.checkbox(
                 "Remove maximum OD readings by quantile",
-                value=False,
+                value=st.session_state.get("remove_max", False),
             )
             filter_by_iqr_range = st.checkbox(
-                "Remove outliers by Inter-Quartil-Range (IQR) in rolling window of timepoints",
-                value=False,
+                "Remove outliers by Inter-Quartile Range (IQR) in rolling window of"
+                " timepoints",
+                value=st.session_state.get("filter_by_iqr_range", False),
             )
         with filter_columns[1]:
             quantile_max = st.slider(
                 "Max quantile for maximum removal",
                 0.9,
                 1.0,
-                0.99,
+                st.session_state.get("quantile_max", 0.99),
                 step=0.01,
             )
             iqr_range_value = st.slider(
                 "IQR range for outlier removal",
                 1.0,
                 3.0,
-                1.5,
+                st.session_state.get("iqr_range_value", 1.5),
                 step=0.1,
             )
             rolling_window = st.slider(
                 "Rolling window (of timepoints) for IQR outlier removal",
                 11,
                 61,
-                21,
+                st.session_state.get("rolling_window", 21),
                 step=2,
             )
 
@@ -231,8 +246,8 @@ with st.container(border=True):
             "Select time windows for data to be processed. Dates are inferred from "
             "uploaded data. This won't be plotted in red as filtered data, but just "
             "cap the datapoints for reactors outside of the selected windows."
-            "The overall time window bounds the selected time windows for the individual "
-            "reactors."
+            " The overall time window bounds the selected time windows for the individual"
+            " reactors."
         )
         min_date, max_date = None, None
         time_window_cols = st.columns(
@@ -245,43 +260,59 @@ with st.container(border=True):
                 "with slight time offsets.",
                 0,
                 60,
-                5,
+                st.session_state.get("round_time", 5),
                 step=1,
             )
-        with time_window_cols[1]:
-            if df_raw_od_data is not None:
-                min_date, max_date = st.select_slider(
-                    "Select overall time window (inferred).",
-                    options=df_raw_od_data["timestamp_rounded"],
-                    value=(
-                        df_raw_od_data["timestamp_rounded"].min(),
-                        df_raw_od_data["timestamp_rounded"].max(),
-                    ),
-                )
-            else:
-                st.empty()
-        with time_window_cols[2]:
-            update_zero_timepoint = st.checkbox(
-                "Reset T0",
-                value=False,
-                help=(
-                    "If checked, a new zero time is set to the minimum timestamp of the overall"
-                    " time window."
-                ),
-            )
+        # ! move this to data_dashboard page.
+        update_zero_timepoint = None
         time_ranges = {}
         if df_wide_raw_od_data is not None:
+            with time_window_cols[1]:
+                if df_raw_od_data is not None:
+                    min_date, max_date = st.select_slider(
+                        "Select overall time window (inferred).",
+                        options=df_raw_od_data["timestamp_rounded"],
+                        value=(
+                            st.session_state.get(
+                                "min_date", df_raw_od_data["timestamp_rounded"].min()
+                            ),
+                            st.session_state.get(
+                                "max_date", df_raw_od_data["timestamp_rounded"].max()
+                            ),
+                        ),
+                    )
+                else:
+                    st.empty()
+            with time_window_cols[2]:
+                update_zero_timepoint = st.checkbox(
+                    "Reset T0",
+                    value=st.session_state.get("update_zero_timepoint", False),
+                    help=(
+                        "If checked, a new zero time is set to the minimum timestamp of the"
+                        " overall time window."
+                    ),
+                )
             with st.expander("Select time window per reactor"):
                 st.info("Note: Minimum and maximum for slider are reactor specific!")
                 # per reactor, get min and max timestamps
                 for reactor in df_wide_raw_od_data.columns:
+                    if st.session_state.get("time_ranges", {}).get(reactor) is not None:
+                        _min_tp, _max_tp = st.session_state["time_ranges"][reactor]
+                    else:
+                        _options_timepoints = (
+                            df_wide_raw_od_data[reactor].dropna().index
+                        )
+                        _min_tp, _max_tp = (
+                            _options_timepoints.min(),
+                            _options_timepoints.max(),
+                        )
                     time_ranges[reactor] = st.select_slider(
                         f"Select time window (inferred) for {reactor}."
                         " Bounded by overall time window.",
                         options=df_wide_raw_od_data[reactor].dropna().index,
                         value=(
-                            df_wide_raw_od_data[reactor].dropna().index.min(),
-                            df_wide_raw_od_data[reactor].dropna().index.max(),
+                            _min_tp,
+                            _max_tp,
                         ),
                     )
 
@@ -290,6 +321,27 @@ with st.container(border=True):
             "Apply options to uploaded data", type="primary", width="stretch"
         )
 
+### save form state
+# remember form values for next time page is opened
+st.session_state["keep_core_data"] = keep_core_data
+st.session_state["custom_id"] = custom_id
+st.session_state["reactors_selected"] = reactors_selected
+st.session_state["remove_negative"] = remove_negative
+st.session_state["fill_na"] = fill_na
+st.session_state["remove_downward_trending"] = remove_downward_trending
+st.session_state["remove_max"] = remove_max
+st.session_state["filter_by_iqr_range"] = filter_by_iqr_range
+st.session_state["quantile_max"] = quantile_max
+st.session_state["iqr_range_value"] = iqr_range_value
+st.session_state["rolling_window"] = rolling_window
+st.session_state["round_time"] = round_time
+st.session_state["update_zero_timepoint"] = update_zero_timepoint
+st.session_state["time_ranges"] = time_ranges
+
+if min_date is not None and max_date is not None:
+    # update data specific options in session state
+    st.session_state["min_date"] = min_date
+    st.session_state["max_date"] = max_date
 ########################################################################################
 # Process data
 
@@ -478,24 +530,24 @@ if button_pressed:
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.rolling.html
 
     if filter_by_iqr_range:
-        mask_outliers = (
-            df_wide_raw_od_data_filtered.rolling(
-                rolling_window,
-                min_periods=min_periods,
-                center=True,
-                closed="both",
+        with st.spinner("Applying IQR outlier removal..."):
+            mask_outliers = df_wide_raw_od_data_filtered.apply(
+                gc.preprocessing.detect_outliers,
+                raw=False,
+                method="iqr",
+                factor=iqr_range_value,
+                window_size=rolling_window,
+            ).astype(bool)
+            # st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
+            msg += f"- Number of outliers detected: {mask_outliers.sum().sum()}\n"
+            msg += f"   - in detail: {mask_outliers.sum().to_dict()}\n"
+            masked = masked | mask_outliers
+
+            # apply mask to entire dataframe
+
+            df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(
+                mask_outliers
             )
-            .apply(piogrowth.filter.out_of_iqr, kwargs={"factor": iqr_range_value})
-            .astype(bool)
-        )
-        # st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
-        msg += f"- Number of outliers detected: {mask_outliers.sum().sum()}\n"
-        msg += f"   - in detail: {mask_outliers.sum().to_dict()}\n"
-        masked = masked | mask_outliers
-
-        # apply mask to entire dataframe
-
-        df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_outliers)
 
     masked = masked.convert_dtypes()
 
@@ -545,3 +597,5 @@ if button_pressed:
     )
     st.session_state["df_time_map"] = df_time_map
     st.session_state["upload_processing_summary_msg"] = msg
+    st.write("### Data processing summary:")
+    st.write(msg)
