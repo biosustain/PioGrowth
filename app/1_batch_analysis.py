@@ -437,6 +437,18 @@ with st.container(border=True):
             "window_points", 150
         ),
         window_step_size=5,
+        min_data_points_default=st.session_state["batch_analysis_options"].get(
+            "min_data_points", 50
+        ),
+        min_signal_to_noise_default=st.session_state["batch_analysis_options"].get(
+            "min_signal_to_noise", 1.0
+        ),
+        min_od_increase_default=st.session_state["batch_analysis_options"].get(
+            "min_od_increase", 0.5
+        ),
+        min_growth_rate_default=st.session_state["batch_analysis_options"].get(
+            "min_growth_rate", 0.01
+        ),
     )
     render_parameter_calculation_table_upload_style(analysis_options)
     run_analysis = st.button("Run Analysis", type="primary", width="stretch")
