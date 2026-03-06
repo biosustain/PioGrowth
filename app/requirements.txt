@@ -1,5 +1,5 @@
 streamlit
 pandas
 matplotlib
-growthcurves==0.7.0
+growthcurves
 .
