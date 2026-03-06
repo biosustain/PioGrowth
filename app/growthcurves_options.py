@@ -225,7 +225,13 @@ def _ui_method_params_upload_style(
     return int(window_points), smooth_mode, spline_s
 
 
-def _ui_qc_filters_upload_style():
+# ! to update to save last set state
+def _ui_qc_filters_upload_style(
+    min_data_points_default=5,
+    min_signal_to_noise_default=1.0,
+    min_od_increase_default=0.05,
+    min_growth_rate_default=0.001,
+):
     """Render quality control filter inputs."""
     st.caption("Wells failing these criteria will be marked as no growth")
     col1, col2, col3, col4 = st.columns(4)
@@ -234,7 +240,7 @@ def _ui_qc_filters_upload_style():
         "Minimum data points",
         1,
         100,
-        5,
+        min_data_points_default,
         1,
         help="Minimum number of valid data points required for growth analysis.",
         key="batch_min_data_points",
@@ -243,7 +249,7 @@ def _ui_qc_filters_upload_style():
         "Minimum signal:noise",
         0.1,
         100.0,
-        1.0,
+        min_signal_to_noise_default,
         0.1,
         help="Minimum ratio of maximum to minimum OD signal.",
         key="batch_min_signal_to_noise",
@@ -252,7 +258,7 @@ def _ui_qc_filters_upload_style():
         "Minimum OD increase",
         0.0,
         None,
-        0.05,
+        min_od_increase_default,
         0.001,
         format="%.3f",
         help="Minimum absolute increase in OD to be considered growth.",
@@ -262,7 +268,7 @@ def _ui_qc_filters_upload_style():
         "Minimum growth rate",
         0.0,
         None,
-        0.001,
+        min_growth_rate_default,
         0.0001,
         format="%.4f",
         help="Minimum specific growth rate to be considered growth.",
@@ -532,6 +538,10 @@ def render_upload_style_analysis_options(
     max_window_points=200,
     default_window_points=10,
     window_step_size=1,
+    min_data_points_default=5,
+    min_signal_to_noise_default=1.0,
+    min_od_increase_default=0.05,
+    min_growth_rate_default=0.001,
 ):
     """Render analysis options aligned with TheGrowthAnalysisApp upload page."""
     model_col, boundary_col = st.columns(2, gap="large")
@@ -559,7 +569,12 @@ def render_upload_style_analysis_options(
             min_signal_to_noise,
             min_od_increase,
             min_growth_rate,
-        ) = _ui_qc_filters_upload_style()
+        ) = _ui_qc_filters_upload_style(
+            min_data_points_default=min_data_points_default,
+            min_signal_to_noise_default=min_signal_to_noise_default,
+            min_od_increase_default=min_od_increase_default,
+            min_growth_rate_default=min_growth_rate_default,
+        )
 
     with boundary_col:
         phase_boundary_method, lag_cutoff, exp_cutoff = (
