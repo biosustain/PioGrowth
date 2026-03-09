@@ -342,8 +342,8 @@ if remove_downward_trending:
 
 selected_model = analysis_options["selected_model"]
 spline_smoothing_value = analysis_options["spline_smoothing_value"]
-n_fits_sliding_window = analysis_options["n_fits"]
-n_window_size = analysis_options["window_points"]
+fits_sliding_window = analysis_options["n_fits"]
+window_points = analysis_options["window_points"]
 phase_boundary_method = analysis_options["phase_boundary_method"]
 lag_cutoff = analysis_options["lag_cutoff"]
 exp_cutoff = analysis_options["exp_cutoff"]
@@ -360,10 +360,10 @@ stats_df = _run_model_fitting_on_df_with_peaks_compat(
     df_rolling,
     peaks,
     model_name=selected_model,
-    n_fits=n_fits_sliding_window,
+    n_fits=fits_sliding_window,
     spline_s=spline_smoothing_value,
     smooth_mode=smooth_mode,
-    window_points=n_window_size,
+    window_points=window_points,
     phase_boundary_method=phase_boundary_method,
     exp_threshold=exp_cutoff,
     lag_threshold=lag_cutoff,
