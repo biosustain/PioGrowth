@@ -121,23 +121,15 @@ def _build_effective_options_from_widgets(
     options_refit["min_signal_to_noise"] = float(st.session_state[rp_min_snr_key])
     options_refit["min_data_points"] = int(st.session_state[rp_min_dp_key])
 
-    analysis_params = {
-        "min_od_increase": options_refit["min_od_increase"],
-        "min_growth_rate": options_refit["min_growth_rate"],
-        "min_signal_to_noise": options_refit["min_signal_to_noise"],
-        "min_data_points": options_refit["min_data_points"],
-    }
     method = piogrowth.analyze.growth_method_from_model(batch_options["selected_model"])
-    # ? Why are both needed?
+    # Only update relevant for method
     if method == "Sliding Window":
-        options_refit["n_window_size"] = int(st.session_state[rp_window_key])
-        analysis_params["window_points"] = int(st.session_state[rp_window_key])
+        options_refit["window_points"] = int(st.session_state[rp_window_key])
     elif method == "Spline":
         options_refit["smooth_mode"] = piogrowth.analyze.normalize_smooth(
             st.session_state[rp_smooth_key]
         )
-        analysis_params["smooth"] = options_refit["smooth_mode"]
-    return options_refit, analysis_params
+    return options_refit, None
 
 
 ## ! _on_defaults and _on_reanalyse have a lot of duplicated code. refactor
@@ -206,8 +198,9 @@ def _on_reanalyse(
 ):
     # update batch_options with used_params_map
     _batch_options = dict(batch_options)
-    _batch_options.update(used_params_map.get(selected_reactor, {}))
-    options_refit, analysis_params = _build_effective_options_from_widgets(
+    # Will be updated anyways with all the keys
+    # _batch_options.update(used_params_map.get(selected_reactor, {}))
+    options_refit, _ = _build_effective_options_from_widgets(
         _batch_options,
         rp_min_od_key,
         rp_min_gr_key,
@@ -231,8 +224,7 @@ def _on_reanalyse(
     _fit(
         t=t_refit,
         y=y_refit,
-        options_refit=options_refit,
-        analysis_params=analysis_params,
+        analysis_params=options_refit,
         selected_reactor=selected_reactor,
         fit_cache=fit_cache,
         stats_df=stats_df,
@@ -242,13 +234,6 @@ def _on_reanalyse(
         exp_phase_end=exp_end,
         max_od=max_od,
     )
-
-    # piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, stats_new)
-
-    # st.session_state["batch_analysis_summary_df"] = stats_df
-    # st.session_state["batch_analysis_fit_cache"] = fit_cache
-    # st.session_state["batch_selected_fit_times"] = selected_fit_times_map
-    # st.session_state["batch_analysis_used_params"] = used_params_map
 
 
 def _on_lasso_select(
@@ -300,7 +285,6 @@ def _on_lasso_select(
 def _fit(
     t,
     y,
-    options_refit,
     analysis_params,
     selected_reactor,
     fit_cache,
@@ -311,7 +295,14 @@ def _fit(
     exp_phase_end=None,
     max_od=None,
 ):
-    fit_, stats_ = piogrowth.analyze.fit_single_series(t, y, options_refit)
+    """Fits a single time series based on analysis_params, checks for now
+    growth.
+
+    Has several update sub-steps which could be factored out.
+    """
+    # print("analysis params in _fit")
+    # print(analysis_params)
+    fit_, stats_ = piogrowth.analyze.fit_single_series(t, y, analysis_params)
     #  allows manual overwriting of these three parameters based on _reanalyse panel
     if exp_phase_start is not None:
         stats_["exp_phase_start"] = float(exp_phase_start)
@@ -324,17 +315,17 @@ def _fit(
         t=t,
         N=y,
         growth_stats=stats_,
-        min_data_points=options_refit["min_data_points"],
-        min_signal_to_noise=options_refit["min_signal_to_noise"],
-        min_od_increase=options_refit["min_od_increase"],
-        min_growth_rate=options_refit["min_growth_rate"],
+        min_data_points=analysis_params["min_data_points"],
+        min_signal_to_noise=analysis_params["min_signal_to_noise"],
+        min_od_increase=analysis_params["min_od_increase"],
+        min_growth_rate=analysis_params["min_growth_rate"],
     )
     if res_no_growth["is_no_growth"]:
         logger.debug(res_no_growth)
         stats_ = gc.inference.bad_fit_stats()
         stats_["no_growth_reason"] = res_no_growth.get("reason", "No growth detected")
         stats_["elapsed_time"] = np.nan
-        stats_["model_name"] = options_refit["selected_model"]
+        stats_["model_name"] = analysis_params["selected_model"]
     fit_cache[selected_reactor] = fit_
     piogrowth.analyze.update_reactor_stats(stats_df, selected_reactor, stats_)
     selected_fit_times_map[selected_reactor] = t.tolist()
