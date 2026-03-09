@@ -502,7 +502,12 @@ with st.container(border=True):
     fit_cache = st.session_state.setdefault("batch_analysis_fit_cache", {})
     used_params_map = st.session_state.setdefault("batch_analysis_used_params", {})
 
+    # First two boxes in step 2
+    # ToDo: Set borders here to remove one level on indentation
     control_col, phase_col = st.columns(2, gap="large")
+
+    ####################################################################################
+    # Select the reactor, which type of plot (linear or log) and requested annotations
     with control_col:
         with st.container(border=True):
             reactor_col, popover_col, toggle_col = st.columns(
@@ -642,6 +647,7 @@ with st.container(border=True):
             batch_options.get("smooth_mode", "fast")
         )
 
+    # Right top-box in panel for step 2
     with phase_col:
         with st.container(border=True):
             t_min, t_max = float(t_all.min()), float(t_all.max())
@@ -673,7 +679,7 @@ with st.container(border=True):
             # stats_df.loc[selected_reactor, "max_od"] = float(max_od)
 
             action_col1, action_col2, action_col3 = st.columns(3)
-
+            # Assign no-growth manually
             with action_col1:
                 st.button(
                     "No Growth",
@@ -691,6 +697,7 @@ with st.container(border=True):
                         batch_options,
                     ),
                 )
+            # Reanalysis Actions (parameter setting and trigger)
             with action_col2:
                 with st.popover("Re-analyse", width="stretch"):
                     st.markdown("**No-growth thresholds**")
@@ -795,6 +802,7 @@ with st.container(border=True):
                                 rp_smooth_key,
                             ),
                         )
+            # Exclude timeseries from analysis
             with action_col3:
                 st.button(
                     "Exclude from analysis",
@@ -834,6 +842,8 @@ with st.container(border=True):
 
     stats = piogrowth.analyze.get_reactor_stats_dict(stats_df, selected_reactor)
 
+    ####################################################################################
+    # Row with growth information and instructions for interaction with the plot
     status_col, expander_col = st.columns([2, 5])
     with status_col:
         # ! to update to use more advanced function.
@@ -885,6 +895,8 @@ with st.container(border=True):
             "only the selected points to recalculate growth parameters."
         )
 
+    ####################################################################################
+    # Show timeseries plot for selected time series in panel
     st.divider()
 
     scale = "log" if log_scale else "linear"
