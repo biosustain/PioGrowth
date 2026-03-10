@@ -153,8 +153,8 @@ def fit_single_series(
     n_arr = np.asarray(n_values, dtype=float)
     fit_kwargs = build_fit_kwargs(
         model_name=batch_options["selected_model"],
-        n_fits=batch_options["n_fits_sliding_window"],
-        window_points=batch_options["n_window_size"],
+        n_fits=batch_options["n_fits"],
+        window_points=batch_options["window_points"],
         spline_s=batch_options["spline_smoothing_value"],
         smooth_mode=batch_options.get("smooth_mode", "fast"),
     )
@@ -375,7 +375,7 @@ def default_analysis_params(batch_options: dict) -> dict:
     }
     method = growth_method_from_model(batch_options.get("selected_model", ""))
     if method == "Sliding Window":
-        params["window_points"] = batch_options.get("n_window_size")
+        params["window_points"] = batch_options.get("window_points")
     elif method == "Spline":
         params["smooth"] = normalize_smooth(batch_options.get("smooth_mode", "fast"))
     return params

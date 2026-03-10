@@ -27,14 +27,14 @@ def render_options_for_growthcurve_fitting(s_min=3, s_max=1000, s_default=1000):
         step=1,
     )
     st.write("#### Sliding window options:")
-    n_fits_sliding_window = st.slider(
+    fits_sliding_window = st.slider(
         "Number of fits used for sliding window to calculate derivatives",
         5,
         200,
         50,
         step=5,
     )
-    n_window_size = st.slider(
+    window_size = st.slider(
         "Window size for sliding window method (in hours)",
         3,
         1000,
@@ -70,8 +70,8 @@ def render_options_for_growthcurve_fitting(s_min=3, s_max=1000, s_default=1000):
     return (
         selected_model,
         spline_smoothing_value,
-        n_fits_sliding_window,
-        n_window_size,
+        fits_sliding_window,
+        window_size,
         phase_boundary_method,
         exp_frac,
     )
