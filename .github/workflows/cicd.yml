@@ -25,7 +25,6 @@ jobs:
         with:
           options: "--check --verbose"
           src: "."
-          use_pyproject: true
       - uses: isort/isort-action@v1
   lint:
     name: Lint with ruff
