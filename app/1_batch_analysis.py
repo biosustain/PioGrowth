@@ -1018,6 +1018,8 @@ with st.container(border=True):
             type="primary",
             width="stretch",
         )
+
+# Debug option to inspect session state variables related to batch analysis
 if st.session_state.get("debug_mode", False):
     with st.expander("Developer inspect (session state)", expanded=False):
         st.write("Used parameters map for re-analysis selection:")
