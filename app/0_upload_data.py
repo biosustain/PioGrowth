@@ -483,9 +483,12 @@ if button_pressed:
         _min_date, _max_date = time_range
         _min_date = max(_min_date, min_date)
         _max_date = min(_max_date, max_date)
-        df_wide_raw_od_data[reactor] = df_wide_raw_od_data.loc[
-            _min_date:_max_date, reactor
-        ]
+        reactor_in_window = df_wide_raw_od_data.index.to_series().between(
+            _min_date, _max_date
+        )
+        df_wide_raw_od_data.loc[:, reactor] = df_wide_raw_od_data[reactor].where(
+            reactor_in_window
+        )
 
         if update_zero_timepoint and start_time < _min_date:
             # update start time if new zero time is after current start time
