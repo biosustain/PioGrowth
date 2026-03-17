@@ -408,7 +408,7 @@ Workflow:
 BATCH_HELP = f"{BATCH_HELP}\n\n---\n\n{piogrowth.analyze.load_method_notes_markdown()}"
 
 
-page_header_with_help("Batch Growth Analysis", BATCH_HELP)
+page_header_with_help("Analyze growth experiment in batch mode", BATCH_HELP)
 
 if no_data_uploaded:
     show_warning_to_upload_data()
