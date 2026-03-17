@@ -606,7 +606,6 @@ if button_pressed:
             "removed globally."
         )
     #### switch wide data to time eplased in hours #####################################
-    st.session_state["start_time"] = df_wide_raw_od_data_filtered.index[0]
     df_rolling = piogrowth.reindex_w_relative_time(
         df=df_rolling,
         start_time=st.session_state["start_time"],
