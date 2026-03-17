@@ -475,6 +475,7 @@ if button_pressed:
         st.info(f"Time range: {min_date} to {max_date}")
 
     if update_zero_timepoint:
+        print(f"Updating zero timepoint to {min_date} based on user selection.")
         start_time = min_date
 
     for reactor, time_range in time_ranges.items():
@@ -632,3 +633,30 @@ if button_pressed:
     st.session_state["upload_processing_summary_msg"] = msg
     st.write("### Data processing summary:")
     st.write(msg)
+
+
+# Debug option to inspect session state variables related to data upload and processing
+if st.session_state.get("debug_mode", False):
+    with st.expander("Developer inspect (session state)", expanded=False):
+        st.write("Session state variables related to data upload and processing:")
+        st.write(
+            {
+                "custom_id": st.session_state.get("custom_id"),
+                "keep_core_data": st.session_state.get("keep_core_data"),
+                "reactors_selected": st.session_state.get("reactors_selected"),
+                "remove_negative": st.session_state.get("remove_negative"),
+                "fill_na": st.session_state.get("fill_na"),
+                "remove_downward_trending": st.session_state.get(
+                    "remove_downward_trending"
+                ),
+                "remove_max": st.session_state.get("remove_max"),
+                "filter_by_iqr_range": st.session_state.get("filter_by_iqr_range"),
+                "quantile_max": st.session_state.get("quantile_max"),
+                "iqr_range_value": st.session_state.get("iqr_range_value"),
+                "rolling_window": st.session_state.get("rolling_window"),
+                "round_time": st.session_state.get("round_time"),
+                "time_ranges": st.session_state.get("time_ranges"),
+                "update_zero_timepoint": st.session_state.get("update_zero_timepoint"),
+                "start_time (session.state)": st.session_state.get("start_time"),
+            }
+        )
