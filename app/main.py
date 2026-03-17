@@ -42,7 +42,8 @@ st.sidebar.write("Buttons activate if associated data is available:")
 
 # build multi-page app
 pg = st.navigation(
-    [raw_data, calibrate_data, batch_analysis, turbistat_modus, about_page], position="top"
+    [raw_data, calibrate_data, batch_analysis, turbistat_modus, about_page],
+    position="top",
 )
 
 red_buttons()
