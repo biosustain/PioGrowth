@@ -81,16 +81,14 @@ def apply_linear_adjustments(
 ### Start Page
 st.title("Calibrate OD data")
 st.error("⚠️ Use with caution and read comment:")
-st.write(
-    """
+st.write("""
     Calibration using OD data assumes a linear relationship between the original and 
     target OD values.
 
     For bioscatter values between zero and five, the linear adjustment is typically 
     sufficient accoring to common community experience. Detailed data analysis has 
     to be published to suppport this claim.
-    """
-)
+    """)
 
 ### Stop if df_rolling is not available
 if no_data_uploaded:
@@ -149,14 +147,12 @@ if st.session_state.get("is_df_rolling_adjusted") not in (None, False):
 ### If no file is uploaded, show template and download button
 if od_adjustment_upload is None:
     st.subheader("OD linear adjustment template")
-    st.write(
-        """
+    st.write("""
         To adjust the OD values, please fill in the table below and upload it using the 
         uploader above
 
         The values were  based on the filtered data's first and last OD values.
-        """
-    )
+        """)
     adjustment_template = build_od_adjustment_template(df_rolling)
     create_download_button(
         label="Download OD adjustment template",
