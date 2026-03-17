@@ -177,14 +177,27 @@ with st.container(border=True):
             )
         filter_columns = st.columns(2)
         with filter_columns[0]:
-            remove_negative = st.checkbox(
-                "Set negative OD readings to missing (NaN)",
-                help=(
-                    "Negative values will distort the curve fitting as the logarithm is "
-                    "set to NaN."
+            negative_handling = st.radio(
+                "How should negative OD readings be handled?",
+                options=[
+                    "Set negative OD readings to missing (NaN)",
+                    "Impute negative values by moving average",
+                ],
+                index=(
+                    1
+                    # if st.session_state.get("remove_negative", False)
+                    # and st.session_state.get("fill_na", False)
+                    # else 0
                 ),
-                value=st.session_state.get("remove_negative", False),
+                key="negative_handling",
+                help=(
+                    "Negative values distort curve fitting. Choose whether to convert "
+                    "them to missing values or impute them."
+                ),
             )
+            remove_negative = True
+            if negative_handling == "Impute negative values by moving average":
+                remove_negative = False
             fill_na = st.checkbox(
                 "Impute missing bioscatter readings using forward and backward filling",
                 help=(
@@ -500,6 +513,24 @@ if button_pressed:
         msg += f"   - in detail: {mask_negative.sum().to_dict()}\n"
         df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_negative)
         masked = masked | mask_negative
+    else:
+        mask_negative = df_wide_raw_od_data_filtered < 0
+        window = 31
+        # Replace negatives with NaN,
+        # then compute centered rolling mean over non-missing values
+        temp = df_wide_raw_od_data_filtered.mask(mask_negative)
+        rolling_mean = temp.rolling(window=window, min_periods=1, center=True).mean()
+        df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(
+            mask_negative, rolling_mean
+        )
+        n_imputed = mask_negative.sum().sum()
+        msg += (
+            f"- Imputed {n_imputed:,d} negative OD readings using"
+            f" centered rolling mean (window={window}).\n"
+        )
+        msg += f"   - in detail: {mask_negative.sum().to_dict()}\n"
+        masked = masked | mask_negative
+        del temp, rolling_mean, mask_negative
     if fill_na:
         mask_na = df_wide_raw_od_data_filtered.isna()
         msg += f"- Filling {mask_na.sum().sum():,d} missing OD readings.\n"
