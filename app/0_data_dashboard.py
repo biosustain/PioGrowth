@@ -83,6 +83,7 @@ if df_wide_raw_od_data is not None and masked is not None:
             df_plot,
             mask_plot,
             sharey=use_same_yaxis_scale,
+            sharex=False,
             is_data_index=not use_elapsed_time,
         )
         st.write(fig)
