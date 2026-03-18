@@ -1,6 +1,7 @@
 import io
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -22,6 +23,8 @@ def plot_growth_data_w_mask(
     sharey: bool = False,
     sharex: bool = True,
     is_data_index: bool = True,
+    ticks_x_axis_interval: int = 1,
+    ticks_y_axis_nbins: int = 5,
 ) -> plt.Figure:
     """Plot optical density (OD) growth data."""
     # ?check that index is datetime and columns are numeric?
@@ -60,6 +63,14 @@ def plot_growth_data_w_mask(
             s=2,
             title=f"Reactor: {col}",  # Customize legend text here
         )
+        if not is_data_index:
+            ax.xaxis.set_major_locator(
+                ticker.MultipleLocator(ticks_x_axis_interval)
+            )  # tick every 10 units
+        ax.yaxis.set_major_locator(
+            ticker.MaxNLocator(nbins=ticks_y_axis_nbins)
+        )  # automatic y-axis ticks
+
     fig.tight_layout()
 
     if is_data_index:
