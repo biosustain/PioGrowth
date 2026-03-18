@@ -368,6 +368,7 @@ def growth_method_from_model(model_name: str) -> str:
 def default_analysis_params(batch_options: dict) -> dict:
     """Build default analysis parameter dict for readout table."""
     params = {
+        "selected_model": batch_options.get("selected_model"),
         "min_od_increase": batch_options.get("min_od_increase"),
         "min_growth_rate": batch_options.get("min_growth_rate"),
         "min_signal_to_noise": batch_options.get("min_signal_to_noise"),
