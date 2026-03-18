@@ -356,33 +356,35 @@ xlabel = DEFAULT_XLABEL_REL
 # ? should the one with negative values removed stored globally?
 st.session_state["df_rolling_turbidostat"] = df_rolling
 
-stats_df = _run_model_fitting_on_df_with_peaks_compat(
-    df_rolling,
-    peaks,
-    model_name=selected_model,
-    n_fits=fits_sliding_window,
-    spline_s=spline_smoothing_value,
-    smooth_mode=smooth_mode,
-    window_points=window_points,
-    phase_boundary_method=phase_boundary_method,
-    exp_threshold=exp_cutoff,
-    lag_threshold=lag_cutoff,
-)
+with st.spinner(text="Fitting curves...", show_time=True):
+    stats_df = _run_model_fitting_on_df_with_peaks_compat(
+        df_rolling,
+        peaks,
+        model_name=selected_model,
+        n_fits=fits_sliding_window,
+        spline_s=spline_smoothing_value,
+        smooth_mode=smooth_mode,
+        window_points=window_points,
+        phase_boundary_method=phase_boundary_method,
+        exp_threshold=exp_cutoff,
+        lag_threshold=lag_cutoff,
+    )
 
-fig, axes = plot_growth_data_w_peaks(df_rolling, peaks, is_data_index=False)
+    fig, axes = plot_growth_data_w_peaks(df_rolling, peaks, is_data_index=False)
 
-time_at_mu_max = stats_df["time_at_umax"]
+    time_at_mu_max = stats_df["time_at_umax"]
 
-axes = axes.flatten()
-for ax, _col in zip(axes, df_rolling.columns):
-    s_maxima = time_at_mu_max.loc[_col]
-    for x in s_maxima:
-        ax.axvline(x=x, color="red", linestyle="--")
-for ax, col in zip(axes, df_rolling.columns):
-    sub_df = stats_df.loc[col]
-    range_exp_phase = list(zip(sub_df["exp_phase_start"], sub_df["exp_phase_end"]))
-    for _start, _end in range_exp_phase:
-        ax.axvspan(_start, _end, color="gray", alpha=0.2)
+    axes = axes.flatten()
+    for ax, _col in zip(axes, df_rolling.columns):
+        s_maxima = time_at_mu_max.loc[_col]
+        for x in s_maxima:
+            ax.axvline(x=x, color="red", linestyle="--")
+    for ax, col in zip(axes, df_rolling.columns):
+        sub_df = stats_df.loc[col]
+        range_exp_phase = list(zip(sub_df["exp_phase_start"], sub_df["exp_phase_end"]))
+        for _start, _end in range_exp_phase:
+            ax.axvspan(_start, _end, color="gray", alpha=0.2)
+
 with st.container(border=True):
     st.subheader("Step 4. Review Fitted Curves and Peaks")
     st.markdown(
