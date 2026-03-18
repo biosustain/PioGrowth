@@ -86,6 +86,15 @@ if df_wide_raw_od_data is not None and masked is not None:
             sharex=False,
             is_data_index=not use_elapsed_time,
         )
+        st.markdown(
+            """
+            - <span style="color:red">red dots</span> red dots indicate points that
+              were masked (removed) during data processing
+            - <span style="color:blue">blue dots</span> indicate data that is
+              retained before rolling median calculation
+            """,
+            unsafe_allow_html=True,
+        )
         st.write(fig)
 
 # show summary message about data processing
