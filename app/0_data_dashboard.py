@@ -83,15 +83,18 @@ if df_wide_raw_od_data is not None and masked is not None:
             df_plot,
             mask_plot,
             sharey=use_same_yaxis_scale,
+            sharex=False,
             is_data_index=not use_elapsed_time,
         )
         st.write(fig)
 
+# show summary message about data processing
 if processing_summary:
     with st.container(border=True):
         st.subheader("Processing summary of OD readings")
         st.markdown(processing_summary)
 
+# show rolling median table
 if df_rolling is not None:
     with st.container(border=True):
         st.header("Rolling Median")
@@ -103,6 +106,7 @@ if df_rolling is not None:
             st.subheader("Rolling median using filtered OD data")
         st.write(df_rolling)
 
+        # consider removing this plot
         if not use_elapsed_time and start_time is not None:
             view = df_rolling.copy()
             view.index = start_time + pd.to_timedelta(view.index, unit="h")
@@ -112,6 +116,7 @@ if df_rolling is not None:
         ax = view.plot.line(style=".", ms=2)
         st.write(ax.get_figure())
 
+# Download buttons in sidebar
 if st.session_state.get("df_raw_od_data") is not None:
     download_data_button_in_sidebar(
         "df_raw_od_data",

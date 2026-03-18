@@ -40,8 +40,9 @@ def callback_clear_raw_data():
 
 
 ########################################################################################
-# Upload File section
+# Step 1: Upload File with OD/bioscatter data
 with st.container(border=True):
+    # header and example data file with requirements in popover
     header_col, req_col = st.columns([4, 1], vertical_alignment="center")
     with header_col:
         st.header("Step 1. Upload PioReactor OD Data")
@@ -53,12 +54,13 @@ with st.container(border=True):
                 "- Required columns: `timestamp_localtime`, `pioreactor_unit`, `od_reading`"
             )
             st.markdown("- One row per measurement")
+            st.markdown("\n > Export from PioReactor WebApp or CLI.")
             st.divider()
             st.markdown("**Example file:**")
             example_data = pd.read_csv("data/example_batch_data_od_readings.csv")
             st.dataframe(example_data.head(10), hide_index=True, width="stretch")
             st.download_button(
-                label="Download example CSV",
+                label="Download example CSV for App testing",
                 data=example_data.to_csv(index=False),
                 file_name="example_batch_data_od_readings.csv",
                 key="download_example_csv",
@@ -66,7 +68,7 @@ with st.container(border=True):
                 type="primary",
                 width="stretch",
             )
-
+    # File Uploading of main data file
     st.markdown("**Main OD Data**")
     file = st.file_uploader(
         "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
@@ -92,18 +94,73 @@ with st.container(border=True):
             st.warning("No data uploaded.")
             st.info("Upload a comma-separated (`.csv`) file to get started.")
 
+# Step 2: Optional metadata uploads
 with st.container(border=True):
-    st.header("Step 2. Optional metadata uploads")
+    header_col, req_col = st.columns([4, 1], vertical_alignment="center")
+    header_col.header("Step 2. Optional metadata uploads")
+
+    # show both optional uploads
     optional_upload_cols = st.columns([2, 3], gap="small")
     with optional_upload_cols[0]:
         st.markdown("**OD Calibration Table**")
+        with st.popover("See an Example", width="stretch"):
+            st.markdown("**OD Calibration Table**")
+            st.markdown(
+                "- CSV file with columns `reactor` and `od`.\n"
+                "- Used to adjust OD readings by reactor based on calibration data."
+            )
+            st.divider()
+            st.markdown("**Example:**")
+            fname = "data/example_batch_data_od_readings_calibration.csv"
+            example_data = pd.read_csv(fname)
+            st.dataframe(example_data, hide_index=True, width="stretch")
+            st.download_button(
+                label="Download example calibration CSV.",
+                data=example_data.to_csv(index=False),
+                file_name="example_batch_data_od_readings_calibration.csv",
+                key="download_example_csv_calibration",
+                mime="text/csv",
+                type="primary",
+                width="stretch",
+            )
         od_adjustment_upload = st.file_uploader(
             "OD adjustment table",
-            type=["csv"],
+            type=["csv", "txt"],
             key="upload_page_od_adjustment_table",
         )
     with optional_upload_cols[1]:
         st.markdown("**Turbidostat Metadata**")
+        with st.popover("See an Example", width="stretch"):
+            st.markdown("**Turbidostat Metadata**")
+            st.markdown(
+                """
+                If provided, peaks are not autodetected.
+                
+                - CSV file with columns `timestamp_localtime`, `pioreactor_unit`,
+                `event_name` and `message` and `data`.
+
+                - Used to parse `DilutionEvents` for turbidostat analysis 
+                  based on event descriptions in the metadata. 
+                  If not provided, peaks will be autodetected based on OD data.
+                """
+            )
+
+            st.markdown("\n > Export from PioReactor WebApp or CLI.")
+            st.divider()
+            st.markdown("**Example:**")
+            fname = "data/example_2-Pio_Experiment_dilution_events.csv"
+            example_data = pd.read_csv(fname)
+            st.dataframe(example_data, hide_index=True, width="stretch")
+            st.download_button(
+                label="Download example dilution events CSV.",
+                data=example_data.to_csv(index=False),
+                file_name="example_2-Pio_Experiment_dilution_events.csv",
+                key="download_example_csv_dilution",
+                mime="text/csv",
+                type="primary",
+                width="stretch",
+            )
+
         turbidostat_meta_upload = st.file_uploader(
             "Dilution metadata (for Turbidostat page)",
             type=["csv"],
@@ -148,9 +205,13 @@ with st.container(border=True):
         st.session_state["turbidostat_meta_upload_bytes"] = None
         st.session_state["turbidostat_meta_upload_name"] = None
 
+# Step 3: Configure preprocessing options
 ### Form ##############################################################################
 with st.container(border=True):
     st.header("Step 3. Configure Processing Options")
+    st.warning(
+        'Options are only saved if you press "Apply options to uploaded data" button at the end of this section.'
+    )
 
     with st.form("Upload_data_form", clear_on_submit=False):
         st.write("#### Data filtering options:")
@@ -177,14 +238,29 @@ with st.container(border=True):
             )
         filter_columns = st.columns(2)
         with filter_columns[0]:
-            remove_negative = st.checkbox(
+            negative_options = [
                 "Set negative OD readings to missing (NaN)",
-                help=(
-                    "Negative values will distort the curve fitting as the logarithm is "
-                    "set to NaN."
-                ),
-                value=st.session_state.get("remove_negative", False),
+                "Impute negative values by moving average",
+            ]
+            default_negative = st.session_state.get(
+                "negative_handling", negative_options[1]
             )
+            try:
+                default_negative_index = negative_options.index(default_negative)
+            except ValueError:
+                default_negative_index = 1
+            negative_handling = st.radio(
+                "How should negative OD readings be handled?",
+                options=negative_options,
+                index=default_negative_index,
+                help=(
+                    "Negative values distort curve fitting. Choose whether to convert "
+                    "them to missing values or impute them."
+                ),
+            )
+            remove_negative = True
+            if negative_handling == "Impute negative values by moving average":
+                remove_negative = False
             fill_na = st.checkbox(
                 "Impute missing bioscatter readings using forward and backward filling",
                 help=(
@@ -327,6 +403,7 @@ st.session_state["keep_core_data"] = keep_core_data
 st.session_state["custom_id"] = custom_id
 st.session_state["reactors_selected"] = reactors_selected
 st.session_state["remove_negative"] = remove_negative
+st.session_state["negative_handling"] = negative_handling
 st.session_state["fill_na"] = fill_na
 st.session_state["remove_downward_trending"] = remove_downward_trending
 st.session_state["remove_max"] = remove_max
@@ -462,6 +539,7 @@ if button_pressed:
         st.info(f"Time range: {min_date} to {max_date}")
 
     if update_zero_timepoint:
+        print(f"Updating zero timepoint to {min_date} based on user selection.")
         start_time = min_date
 
     for reactor, time_range in time_ranges.items():
@@ -470,9 +548,12 @@ if button_pressed:
         _min_date, _max_date = time_range
         _min_date = max(_min_date, min_date)
         _max_date = min(_max_date, max_date)
-        df_wide_raw_od_data[reactor] = df_wide_raw_od_data.loc[
-            _min_date:_max_date, reactor
-        ]
+        reactor_in_window = df_wide_raw_od_data.index.to_series().between(
+            _min_date, _max_date
+        )
+        df_wide_raw_od_data.loc[:, reactor] = df_wide_raw_od_data[reactor].where(
+            reactor_in_window
+        )
 
         if update_zero_timepoint and start_time < _min_date:
             # update start time if new zero time is after current start time
@@ -500,6 +581,24 @@ if button_pressed:
         msg += f"   - in detail: {mask_negative.sum().to_dict()}\n"
         df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(mask_negative)
         masked = masked | mask_negative
+    else:
+        mask_negative = df_wide_raw_od_data_filtered < 0
+        window = 31
+        # Replace negatives with NaN,
+        # then compute centered rolling mean over non-missing values
+        temp = df_wide_raw_od_data_filtered.mask(mask_negative)
+        rolling_mean = temp.rolling(window=window, min_periods=1, center=True).mean()
+        df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(
+            mask_negative, rolling_mean
+        )
+        n_imputed = mask_negative.sum().sum()
+        msg += (
+            f"- Imputed {n_imputed:,d} negative OD readings using"
+            f" centered rolling mean (window={window}).\n"
+        )
+        msg += f"   - in detail: {mask_negative.sum().to_dict()}\n"
+        masked = masked | mask_negative
+        del temp, rolling_mean, mask_negative
     if fill_na:
         mask_na = df_wide_raw_od_data_filtered.isna()
         msg += f"- Filling {mask_na.sum().sum():,d} missing OD readings.\n"
@@ -575,7 +674,6 @@ if button_pressed:
             "removed globally."
         )
     #### switch wide data to time eplased in hours #####################################
-    st.session_state["start_time"] = df_wide_raw_od_data_filtered.index[0]
     df_rolling = piogrowth.reindex_w_relative_time(
         df=df_rolling,
         start_time=st.session_state["start_time"],
@@ -599,3 +697,30 @@ if button_pressed:
     st.session_state["upload_processing_summary_msg"] = msg
     st.write("### Data processing summary:")
     st.write(msg)
+
+
+# Debug option to inspect session state variables related to data upload and processing
+if st.session_state.get("debug_mode", False):
+    with st.expander("Developer inspect (session state)", expanded=False):
+        st.write("Session state variables related to data upload and processing:")
+        st.write(
+            {
+                "custom_id": st.session_state.get("custom_id"),
+                "keep_core_data": st.session_state.get("keep_core_data"),
+                "reactors_selected": st.session_state.get("reactors_selected"),
+                "remove_negative": st.session_state.get("remove_negative"),
+                "fill_na": st.session_state.get("fill_na"),
+                "remove_downward_trending": st.session_state.get(
+                    "remove_downward_trending"
+                ),
+                "remove_max": st.session_state.get("remove_max"),
+                "filter_by_iqr_range": st.session_state.get("filter_by_iqr_range"),
+                "quantile_max": st.session_state.get("quantile_max"),
+                "iqr_range_value": st.session_state.get("iqr_range_value"),
+                "rolling_window": st.session_state.get("rolling_window"),
+                "round_time": st.session_state.get("round_time"),
+                "time_ranges": st.session_state.get("time_ranges"),
+                "update_zero_timepoint": st.session_state.get("update_zero_timepoint"),
+                "start_time (session.state)": st.session_state.get("start_time"),
+            }
+        )

@@ -14,7 +14,12 @@ logo_source = (
 )
 
 # General configurations
-st.set_page_config(page_title="PioGrowth", layout="wide", page_icon=logo_source)
+st.set_page_config(
+    page_title="PioGrowth",
+    layout="wide",
+    page_icon=logo_source,
+    initial_sidebar_state="expanded",
+)
 
 st.logo(logo_source, link="https://github.com/biosustain/PioGrowth")
 

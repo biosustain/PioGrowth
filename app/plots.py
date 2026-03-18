@@ -20,6 +20,7 @@ def plot_growth_data_w_mask(
     df_wide: pd.DataFrame,
     df_mask: pd.DataFrame,
     sharey: bool = False,
+    sharex: bool = True,
     is_data_index: bool = True,
 ) -> plt.Figure:
     """Plot optical density (OD) growth data."""
@@ -27,7 +28,7 @@ def plot_growth_data_w_mask(
 
     units = df_wide.shape[1]
     fig, axes = plt.subplots(
-        units, 1, figsize=(10, 2 * units), sharey=sharey, sharex=True, squeeze=False
+        units, 1, figsize=(10, 2 * units), sharey=sharey, sharex=sharex, squeeze=False
     )
     axes = axes.flatten()
     df_columns = df_wide.columns
@@ -59,13 +60,13 @@ def plot_growth_data_w_mask(
             s=2,
             title=f"Reactor: {col}",  # Customize legend text here
         )
-    ax = axes[-1]
-    fig = ax.get_figure()
     fig.tight_layout()
 
     if is_data_index:
         date_form = DateFormatter("%Y-%m-%d %H:%M")
-        _ = ax.xaxis.set_major_formatter(date_form)
+        for ax in axes:
+            ax.xaxis.set_major_formatter(date_form)
+
     return fig
 
 
