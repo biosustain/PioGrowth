@@ -205,9 +205,13 @@ with st.container(border=True):
         st.session_state["turbidostat_meta_upload_bytes"] = None
         st.session_state["turbidostat_meta_upload_name"] = None
 
+# Step 3: Configure preprocessing options
 ### Form ##############################################################################
 with st.container(border=True):
     st.header("Step 3. Configure Processing Options")
+    st.warning(
+        'Options are only saved if you press "Apply options to uploaded data" button at the end of this section.'
+    )
 
     with st.form("Upload_data_form", clear_on_submit=False):
         st.write("#### Data filtering options:")
@@ -238,16 +242,17 @@ with st.container(border=True):
                 "Set negative OD readings to missing (NaN)",
                 "Impute negative values by moving average",
             ]
-            default_negative = st.session_state.get("negative_handling", negative_options[0])
+            default_negative = st.session_state.get(
+                "negative_handling", negative_options[1]
+            )
             try:
                 default_negative_index = negative_options.index(default_negative)
             except ValueError:
-                default_negative_index = 0
+                default_negative_index = 1
             negative_handling = st.radio(
                 "How should negative OD readings be handled?",
                 options=negative_options,
                 index=default_negative_index,
-                key="negative_handling",
                 help=(
                     "Negative values distort curve fitting. Choose whether to convert "
                     "them to missing values or impute them."
@@ -398,6 +403,7 @@ st.session_state["keep_core_data"] = keep_core_data
 st.session_state["custom_id"] = custom_id
 st.session_state["reactors_selected"] = reactors_selected
 st.session_state["remove_negative"] = remove_negative
+st.session_state["negative_handling"] = negative_handling
 st.session_state["fill_na"] = fill_na
 st.session_state["remove_downward_trending"] = remove_downward_trending
 st.session_state["remove_max"] = remove_max
