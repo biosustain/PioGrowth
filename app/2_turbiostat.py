@@ -385,6 +385,20 @@ for ax, col in zip(axes, df_rolling.columns):
         ax.axvspan(_start, _end, color="gray", alpha=0.2)
 with st.container(border=True):
     st.subheader("Step 4. Review Fitted Curves and Peaks")
+    st.markdown(
+        """
+        - <span style="color:#1f77b4;"><b>Blue points</b></span>: OD data used for
+                analysis (after optional removal of downward trending points)</li>
+        - <span style="color:#7f7f7f;"><b>Grey dashed lines</b></span>: Detected
+        peaks indicating potential dilution events, either from uploaded metadata
+        or automatic detection</li>
+        - <span style="color:#d62728;"><b>Red dashed lines</b></span>: Maximum
+        growth timepoint for turbiostat window</li>
+        - <span style="color:#9e9e9e;"><b>Gray shaded areas</b></span>: Exponential
+        growth phases as determined by fitted model</li>
+        """,
+        unsafe_allow_html=True,
+    )
     st.pyplot(fig)
 
 with st.sidebar:
