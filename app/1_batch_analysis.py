@@ -96,6 +96,7 @@ def _on_no_growth(
     # ? what is fit_cache?
     fit_cache.pop(selected_reactor, None)
     selected_fit_times_map[selected_reactor] = t_all.tolist()
+    # ? is this needed?
     used_params_map[selected_reactor] = piogrowth.analyze.default_analysis_params(
         batch_options
     )
@@ -134,10 +135,10 @@ def _build_effective_options_from_widgets(
 
 ## ! _on_defaults and _on_reanalyse have a lot of duplicated code. refactor
 def _on_defaults(
-    batch_options: dict,
-    selected_reactor: str,
     t_all: np.ndarray,
     y_all: np.ndarray,
+    batch_options: dict,
+    selected_reactor: str,
     stats_df: pd.DataFrame,
     fit_cache: dict,
     selected_fit_times_map: dict,
@@ -149,22 +150,21 @@ def _on_defaults(
     rp_window_key: str,
     rp_smooth_key: str,
 ):
-    # _ why rp prefix?
+    # reset reactor parameters (rp) to defaults from batch_options
     st.session_state[rp_min_od_key] = float(batch_options.get("min_od_increase", 0.05))
     st.session_state[rp_min_gr_key] = float(batch_options.get("min_growth_rate", 0.01))
     st.session_state[rp_min_snr_key] = float(
         batch_options.get("min_signal_to_noise", 1.0)
     )
     st.session_state[rp_min_dp_key] = int(batch_options.get("min_data_points", 50))
-    st.session_state[rp_window_key] = int(batch_options.get("n_window_size", 150))
+    st.session_state[rp_window_key] = int(batch_options.get("window_points", 150))
     st.session_state[rp_smooth_key] = piogrowth.analyze.normalize_smooth(
         batch_options.get("smooth_mode", "fast")
     )
     _fit(
         t=t_all,
         y=y_all,
-        options_refit=batch_options,
-        analysis_params=piogrowth.analyze.default_analysis_params(batch_options),
+        analysis_params=batch_options,
         selected_reactor=selected_reactor,
         fit_cache=fit_cache,
         stats_df=stats_df,
@@ -416,6 +416,7 @@ if no_data_uploaded:
 smoothing_range = get_smoothing_range(len(df_rolling))
 
 ### Form ###############################################################################
+# default batch analysis options (globally set)
 with st.container(border=True):
     st.header("Step 1. Configure Analysis Options")
     analysis_options = render_upload_style_analysis_options(
@@ -782,18 +783,19 @@ with st.container(border=True):
                             type="primary",
                             key=f"batch_restore_defaults__{selected_reactor}",
                             on_click=_on_defaults,
+                            # ! maybe change to kwargs parameter
                             args=(
-                                batch_options,
-                                selected_reactor,
                                 t_all,
                                 y_all,
-                                lag_end,
-                                exp_end,
-                                max_od,
+                                batch_options,
+                                selected_reactor,
                                 stats_df,
                                 fit_cache,
                                 selected_fit_times_map,
                                 used_params_map,
+                                # no s, lag_end, exp_end, max_od needed for defaults,
+                                # as they are not changed here
+                                # ? should be there maybe for consistency?
                                 rp_min_od_key,
                                 rp_min_gr_key,
                                 rp_min_snr_key,
