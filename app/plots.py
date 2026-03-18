@@ -60,13 +60,13 @@ def plot_growth_data_w_mask(
             s=2,
             title=f"Reactor: {col}",  # Customize legend text here
         )
-    ax = axes[-1]
-    fig = ax.get_figure()
     fig.tight_layout()
 
     if is_data_index:
         date_form = DateFormatter("%Y-%m-%d %H:%M")
-        _ = ax.xaxis.set_major_formatter(date_form)
+        for ax in axes:
+            ax.xaxis.set_major_formatter(date_form)
+
     return fig
 
 

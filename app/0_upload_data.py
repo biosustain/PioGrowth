@@ -234,18 +234,19 @@ with st.container(border=True):
             )
         filter_columns = st.columns(2)
         with filter_columns[0]:
+            negative_options = [
+                "Set negative OD readings to missing (NaN)",
+                "Impute negative values by moving average",
+            ]
+            default_negative = st.session_state.get("negative_handling", negative_options[0])
+            try:
+                default_negative_index = negative_options.index(default_negative)
+            except ValueError:
+                default_negative_index = 0
             negative_handling = st.radio(
                 "How should negative OD readings be handled?",
-                options=[
-                    "Set negative OD readings to missing (NaN)",
-                    "Impute negative values by moving average",
-                ],
-                index=(
-                    1
-                    # if st.session_state.get("remove_negative", False)
-                    # and st.session_state.get("fill_na", False)
-                    # else 0
-                ),
+                options=negative_options,
+                index=default_negative_index,
                 key="negative_handling",
                 help=(
                     "Negative values distort curve fitting. Choose whether to convert "
