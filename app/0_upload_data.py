@@ -40,8 +40,9 @@ def callback_clear_raw_data():
 
 
 ########################################################################################
-# Upload File section
+# Step 1: Upload File with OD/bioscatter data
 with st.container(border=True):
+    # header and example data file with requirements in popover
     header_col, req_col = st.columns([4, 1], vertical_alignment="center")
     with header_col:
         st.header("Step 1. Upload PioReactor OD Data")
@@ -53,12 +54,13 @@ with st.container(border=True):
                 "- Required columns: `timestamp_localtime`, `pioreactor_unit`, `od_reading`"
             )
             st.markdown("- One row per measurement")
+            st.markdown("\n > Export from PioReactor WebApp or CLI.")
             st.divider()
             st.markdown("**Example file:**")
             example_data = pd.read_csv("data/example_batch_data_od_readings.csv")
             st.dataframe(example_data.head(10), hide_index=True, width="stretch")
             st.download_button(
-                label="Download example CSV",
+                label="Download example CSV for App testing",
                 data=example_data.to_csv(index=False),
                 file_name="example_batch_data_od_readings.csv",
                 key="download_example_csv",
@@ -66,7 +68,7 @@ with st.container(border=True):
                 type="primary",
                 width="stretch",
             )
-
+    # File Uploading of main data file
     st.markdown("**Main OD Data**")
     file = st.file_uploader(
         "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
@@ -92,11 +94,35 @@ with st.container(border=True):
             st.warning("No data uploaded.")
             st.info("Upload a comma-separated (`.csv`) file to get started.")
 
+# Step 2: Optional metadata uploads
 with st.container(border=True):
-    st.header("Step 2. Optional metadata uploads")
+    header_col, req_col = st.columns([4, 1], vertical_alignment="center")
+    header_col.header("Step 2. Optional metadata uploads")
+
+    # show both optional uploads
     optional_upload_cols = st.columns([2, 3], gap="small")
     with optional_upload_cols[0]:
         st.markdown("**OD Calibration Table**")
+        with st.popover("See an Example", width="stretch"):
+            st.markdown("**OD Calibration Table**")
+            st.markdown(
+                "- CSV file with columns `reactor` and `od`.\n"
+                "- Used to adjust OD readings by reactor based on calibration data."
+            )
+            st.divider()
+            st.markdown("**Example:**")
+            fname = "data/example_batch_data_od_readings_calibration.csv"
+            example_data = pd.read_csv(fname)
+            st.dataframe(example_data, hide_index=True, width="stretch")
+            st.download_button(
+                label="Download example calibration CSV.",
+                data=example_data.to_csv(index=False),
+                file_name="example_batch_data_od_readings_calibration.csv",
+                key="download_example_csv_calibration",
+                mime="text/csv",
+                type="primary",
+                width="stretch",
+            )
         od_adjustment_upload = st.file_uploader(
             "OD adjustment table",
             type=["csv", "txt"],
@@ -104,6 +130,37 @@ with st.container(border=True):
         )
     with optional_upload_cols[1]:
         st.markdown("**Turbidostat Metadata**")
+        with st.popover("See an Example", width="stretch"):
+            st.markdown("**Turbidostat Metadata**")
+            st.markdown(
+                """
+                If provided, peaks are not autodetected.
+                
+                - CSV file with columns `timestamp_localtime`, `pioreactor_unit`,
+                `event_name` and `message` and `data`.
+
+                - Used to parse `DilutionEvents` for turbidostat analysis 
+                  based on event descriptions in the metadata. 
+                  If not provided, peaks will be autodetected based on OD data.
+                """
+            )
+
+            st.markdown("\n > Export from PioReactor WebApp or CLI.")
+            st.divider()
+            st.markdown("**Example:**")
+            fname = "data/example_2-Pio_Experiment_dilution_events.csv"
+            example_data = pd.read_csv(fname)
+            st.dataframe(example_data, hide_index=True, width="stretch")
+            st.download_button(
+                label="Download example dilution events CSV.",
+                data=example_data.to_csv(index=False),
+                file_name="example_2-Pio_Experiment_dilution_events.csv",
+                key="download_example_csv_dilution",
+                mime="text/csv",
+                type="primary",
+                width="stretch",
+            )
+
         turbidostat_meta_upload = st.file_uploader(
             "Dilution metadata (for Turbidostat page)",
             type=["csv"],
