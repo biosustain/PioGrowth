@@ -99,7 +99,7 @@ with st.container(border=True):
         st.markdown("**OD Calibration Table**")
         od_adjustment_upload = st.file_uploader(
             "OD adjustment table",
-            type=["csv"],
+            type=["csv", "txt"],
             key="upload_page_od_adjustment_table",
         )
     with optional_upload_cols[1]:
