@@ -260,7 +260,7 @@ def _on_lasso_select(
     refit_t, refit_y = piogrowth.analyze.collect_selected_series(series, xs)
     if refit_t.size < 2:
         return
-    options_refit, analysis_params = _build_effective_options_from_widgets(
+    options_refit, _ = _build_effective_options_from_widgets(
         batch_options=batch_options,
         rp_min_od_key=rp_min_od_key,
         rp_min_gr_key=rp_min_gr_key,
@@ -272,8 +272,7 @@ def _on_lasso_select(
     _fit(
         t=refit_t,
         y=refit_y,
-        options_refit=options_refit,
-        analysis_params=analysis_params,
+        analysis_params=options_refit,
         selected_reactor=selected_reactor,
         fit_cache=fit_cache,
         stats_df=stats_df,
