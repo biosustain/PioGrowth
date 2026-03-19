@@ -25,9 +25,14 @@ start_time = st.session_state.get("start_time")
 processing_summary = st.session_state.get("upload_processing_summary_msg")
 rolling_window = st.session_state.get("rolling_window")
 st.session_state.setdefault("yaxis_scale", False)
-st.session_state.setdefault("elapsed_time_option", True)
+st.session_state.setdefault("USE_ELAPSED_TIME_FOR_PLOTS", True)
 use_same_yaxis_scale = bool(st.session_state.get("yaxis_scale", False))
-use_elapsed_time = bool(st.session_state.get("elapsed_time_option", True))
+use_elapsed_time = bool(st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", True))
+
+USE_SAME_YAXIS_SCALE = False
+TICKS_X_AXIS_INTERVAL = None
+TICKS_X_AXIS_NBINS = 25
+TICKS_Y_AXIS_NBINS = 5
 
 if df_raw_od_data is None and df_rolling is None:
     show_warning_to_upload_data()
@@ -56,16 +61,59 @@ if df_wide_raw_od_data is not None and masked is not None:
         with plot_option_cols[0]:
             use_same_yaxis_scale = st.checkbox(
                 "Use same y-axis for all reactors?",
-                key="yaxis_scale",
+                value=st.session_state.get(
+                    "use_same_yaxis_scale", USE_SAME_YAXIS_SCALE
+                ),
                 help="Select plotting behaviour.",
             )
         with plot_option_cols[1]:
             use_elapsed_time = st.checkbox(
                 "Use elapsed time (since start) as x-axis on plots?",
+                value=use_elapsed_time,
                 key="elapsed_time_option",
                 help="If checked, elapsed time will be used as x-axis in plots.",
             )
+        st.session_state["use_same_yaxis_scale"] = bool(use_same_yaxis_scale)
         st.session_state["USE_ELAPSED_TIME_FOR_PLOTS"] = bool(use_elapsed_time)
+        # y-axis and x-axis tick options
+        tick_cols = st.columns(3, gap="large")
+        with tick_cols[0]:
+            ticks_x_axis_interval = st.number_input(
+                "X-axis tick interval",
+                min_value=1,
+                value=st.session_state.get(
+                    "ticks_x_axis_interval", TICKS_X_AXIS_INTERVAL
+                ),
+                step=1,
+                help=(
+                    "Fixed interval between x-axis ticks. "
+                    "Overrides 'X-axis tick count' if set."
+                ),
+            )
+        with tick_cols[1]:
+            ticks_x_axis_nbins = st.number_input(
+                "X-axis tick count",
+                min_value=1,
+                value=st.session_state.get("ticks_x_axis_nbins", TICKS_X_AXIS_NBINS),
+                step=1,
+                disabled=True if ticks_x_axis_interval else False,
+                help="Maximum number of x-axis ticks (used when interval is not set).",
+            )
+        with tick_cols[2]:
+            ticks_y_axis_nbins = st.number_input(
+                "Y-axis tick count",
+                min_value=1,
+                value=st.session_state.get("ticks_y_axis_nbins", TICKS_Y_AXIS_NBINS),
+                step=1,
+                help="Maximum number of y-axis ticks.",
+            )
+        st.session_state["yaxis_scale"] = bool(use_same_yaxis_scale)
+        st.session_state["ticks_x_axis_interval"] = (
+            ticks_x_axis_interval if ticks_x_axis_interval else None
+        )
+        st.session_state["ticks_x_axis_nbins"] = ticks_x_axis_nbins
+        st.session_state["ticks_y_axis_nbins"] = ticks_y_axis_nbins
+
         if not use_same_yaxis_scale:
             st.warning("Using different y-axis scale for each reactor.")
         df_plot = df_wide_raw_od_data
@@ -85,6 +133,18 @@ if df_wide_raw_od_data is not None and masked is not None:
             sharey=use_same_yaxis_scale,
             sharex=False,
             is_data_index=not use_elapsed_time,
+            ticks_x_axis_interval=ticks_x_axis_interval,
+            ticks_y_axis_nbins=ticks_y_axis_nbins,
+            ticks_x_axis_nbins=ticks_x_axis_nbins,
+        )
+        st.markdown(
+            """
+            - <span style="color:red">red dots</span> red dots indicate points that
+              were masked (removed) during data processing
+            - <span style="color:blue">blue dots</span> indicate data that is
+              retained before rolling median calculation
+            """,
+            unsafe_allow_html=True,
         )
         st.write(fig)
 

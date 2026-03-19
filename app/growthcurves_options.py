@@ -529,6 +529,14 @@ div.param-calc-table th {{
 """,
         unsafe_allow_html=True,
     )
+    st.markdown(
+        """
+    For more information see the
+    [growthcurves documentation](https://growthcurves.readthedocs.io/),
+    especially the tutorial on fitting curves with growthcurves
+    [here](https://growthcurves.readthedocs.io/en/latest/tutorial/analysis.html)
+    """
+    )
 
 
 def render_upload_style_analysis_options(

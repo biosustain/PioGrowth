@@ -11,6 +11,8 @@ df_wide_raw_od_data = st.session_state.get("df_wide_raw_od_data")
 df_wide_raw_od_data_filtered = st.session_state.get("df_wide_raw_od_data_filtered")
 min_periods = st.session_state.get("min_periods", 5)
 # use_elapsed_time = st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", False)
+# initialize
+st.session_state.setdefault("USE_ELAPSED_TIME_FOR_PLOTS", True)
 
 UPLOAD_HELP = """
 This page loads and preprocesses a single PioReactor OD dataset.
@@ -680,9 +682,6 @@ if button_pressed:
     )
     st.session_state["df_rolling"] = df_rolling
 
-    st.session_state["USE_ELAPSED_TIME_FOR_PLOTS"] = bool(
-        st.session_state.get("elapsed_time_option", True)
-    )
     st.session_state["rolling_window"] = int(rolling_window)
 
     df_time_map = (
