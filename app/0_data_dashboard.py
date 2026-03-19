@@ -25,9 +25,9 @@ start_time = st.session_state.get("start_time")
 processing_summary = st.session_state.get("upload_processing_summary_msg")
 rolling_window = st.session_state.get("rolling_window")
 st.session_state.setdefault("yaxis_scale", False)
-st.session_state.setdefault("use_elapsed_time_for_plots", True)
+st.session_state.setdefault("USE_ELAPSED_TIME_FOR_PLOTS", True)
 use_same_yaxis_scale = bool(st.session_state.get("yaxis_scale", False))
-use_elapsed_time = bool(st.session_state.get("use_elapsed_time_for_plots", True))
+use_elapsed_time = bool(st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", True))
 
 USE_SAME_YAXIS_SCALE = False
 TICKS_X_AXIS_INTERVAL = None
@@ -74,7 +74,7 @@ if df_wide_raw_od_data is not None and masked is not None:
                 help="If checked, elapsed time will be used as x-axis in plots.",
             )
         st.session_state["use_same_yaxis_scale"] = bool(use_same_yaxis_scale)
-        st.session_state["use_elapsed_time_for_plots"] = bool(use_elapsed_time)
+        st.session_state["USE_ELAPSED_TIME_FOR_PLOTS"] = bool(use_elapsed_time)
         # y-axis and x-axis tick options
         tick_cols = st.columns(3, gap="large")
         with tick_cols[0]:
