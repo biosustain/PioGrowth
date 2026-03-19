@@ -1,4 +1,5 @@
 import io
+from typing import Optional
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -23,8 +24,9 @@ def plot_growth_data_w_mask(
     sharey: bool = False,
     sharex: bool = True,
     is_data_index: bool = True,
-    ticks_x_axis_interval: int = 1,
+    ticks_x_axis_interval: Optional[int] = None,
     ticks_y_axis_nbins: int = 5,
+    ticks_x_axis_nbins: Optional[int] = 25,
 ) -> plt.Figure:
     """Plot optical density (OD) growth data."""
     # ?check that index is datetime and columns are numeric?
@@ -64,12 +66,17 @@ def plot_growth_data_w_mask(
             title=f"Reactor: {col}",  # Customize legend text here
         )
         if not is_data_index:
-            ax.xaxis.set_major_locator(
-                ticker.MultipleLocator(ticks_x_axis_interval)
-            )  # tick every 10 units
+            if ticks_x_axis_interval:
+                ax.xaxis.set_major_locator(
+                    ticker.MultipleLocator(ticks_x_axis_interval)
+                )  # tick every x units
+            else:
+                ax.xaxis.set_major_locator(
+                    ticker.MaxNLocator(nbins=ticks_x_axis_nbins)
+                )  # tick every x units
         ax.yaxis.set_major_locator(
             ticker.MaxNLocator(nbins=ticks_y_axis_nbins)
-        )  # automatic y-axis ticks
+        )  # automatic y-axis ticks: apply number
 
     fig.tight_layout()
 
