@@ -41,6 +41,54 @@ def callback_clear_raw_data():
         del st.session_state["max_date"]
 
 
+def apply_linear_adjustments(
+    df_rolling: pd.DataFrame, adjustment_table: pd.DataFrame
+) -> tuple[pd.DataFrame, list[str]]:
+    required_columns = {"reactor", "od"}
+    missing_columns = required_columns - set(adjustment_table.columns)
+    if missing_columns:
+        return df_rolling, [
+            "Adjustment table is missing columns: "
+            f"{', '.join(sorted(missing_columns))}."
+        ]
+
+    warnings = []
+    adjusted = df_rolling.copy()
+    table = adjustment_table.loc[:, ["reactor", "od"]].dropna(subset=["reactor"])
+
+    for reactor, group in table.groupby("reactor", sort=False):
+        if reactor not in adjusted.columns:
+            warnings.append(f"Reactor '{reactor}' not found in df_rolling columns.")
+            continue
+        od_values = group["od"].dropna().tolist()
+        if len(od_values) < 2:
+            warnings.append(
+                f"Reactor '{reactor}' has fewer than two OD values in adjustment table."
+            )
+            continue
+
+        target_start = od_values[0]
+        target_end = od_values[-1]
+        series = adjusted[reactor].dropna()
+        if series.empty:
+            warnings.append(f"Reactor '{reactor}' has no data in df_rolling.")
+            continue
+
+        original_start = series.iloc[0]
+        original_end = series.iloc[-1]
+        if original_end == original_start:
+            warnings.append(
+                f"Reactor '{reactor}' has identical start and end values in df_rolling."
+            )
+            continue
+
+        slope = (target_end - target_start) / (original_end - original_start)
+        intercept = target_start - slope * original_start
+        adjusted[reactor] = adjusted[reactor] * slope + intercept
+
+    return adjusted, warnings
+
+
 ########################################################################################
 # Step 1: Upload File with OD/bioscatter data
 with st.container(border=True):
@@ -664,7 +712,6 @@ if button_pressed:
         .median()
         .sort_index()
     )
-    # ! check if overwriting start time has consequences
 
     if remove_downward_trending:
         # Remove downward trending data globally on averaged data
@@ -675,6 +722,28 @@ if button_pressed:
             "- Downward trending data points (negative OD changes) were "
             "removed globally."
         )
+
+    # ? Should it not be possible to be run twice in a single session?
+    if od_adjustment_upload is not None:
+        if st.session_state.get("is_df_rolling_adjusted"):
+            st.warning(
+                "OD adjustments have already been applied. "
+                "Re-applying will overwrite previous adjustments."
+            )
+        df_adjustments = pd.read_csv(od_adjustment_upload).convert_dtypes()
+        df_rolling, adjustment_warnings = apply_linear_adjustments(
+            df_rolling, df_adjustments
+        )
+        st.session_state["is_df_rolling_adjusted"] = True
+        st.session_state["df_rolling"] = df_rolling
+        st.session_state["df_od_adjustment"] = df_adjustments
+        msg += "- Applied OD adjustments based on uploaded adjustment table.\n"
+        if adjustment_warnings:
+            msg += "- OD adjustments applied with the following warnings:\n"
+        for warning in adjustment_warnings:
+            st.warning(warning)
+            msg += f"    - {warning}\n"
+
     #### switch wide data to time eplased in hours #####################################
     df_rolling = piogrowth.reindex_w_relative_time(
         df=df_rolling,
