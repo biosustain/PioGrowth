@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from buttons import download_data_button_in_sidebar
+from buttons import convert_data, create_download_button
 from plots import plot_growth_data_w_mask
 from ui_components import page_header_with_help, show_warning_to_upload_data
 
@@ -47,12 +47,40 @@ with st.container(border=True):
             st.info("Raw OD data preview appears after data is loaded.")
         else:
             st.dataframe(df_raw_od_data, width="stretch")
+
     with time_col:
         st.subheader("Timestamp to elapsed-time map")
         if df_time_map is None:
             st.info("Timestamp map is generated after preprocessing.")
         else:
             st.dataframe(df_time_map, width="stretch")
+
+    download_buttons = st.columns(5)
+    with download_buttons[0]:
+        create_download_button(
+            label="Download raw data  \n(long format)",
+            data=convert_data(df_raw_od_data),
+            file_name="data_long_rounded_timestamps.csv",
+            disabled=False,
+            mime="text/csv",
+        )
+    with download_buttons[1]:
+        create_download_button(
+            label="Download raw data  \n(wide format)",
+            data=convert_data(df_wide_raw_od_data),
+            file_name="data_wide_rounded_timestamps.csv",
+            disabled=False,
+            mime="text/csv",
+        )
+    with download_buttons[2]:
+        create_download_button(
+            label="Download filtered data",
+            data=convert_data(st.session_state.get("df_wide_raw_od_data_filtered")),
+            file_name="filtered_data_wide_rounded_timestamps.csv",
+            disabled=False,
+            mime="text/csv",
+        )
+
 
 if df_wide_raw_od_data is not None and masked is not None:
     with st.container(border=True):
@@ -165,6 +193,13 @@ if df_rolling is not None:
         else:
             st.subheader("Rolling median using filtered OD data")
         st.write(df_rolling)
+        create_download_button(
+            data=convert_data(df_rolling),
+            label="Download rolling median data",
+            file_name="rolling_median_on_filtered_wide_data_with_rounded_timestamps.csv",
+            disabled=False,
+            mime="text/csv",
+        )
 
         # consider removing this plot
         if not use_elapsed_time and start_time is not None:
@@ -176,31 +211,32 @@ if df_rolling is not None:
         ax = view.plot.line(style=".", ms=2)
         st.write(ax.get_figure())
 
+# ! This was moved to the place in the main page, not sidebar. Can be reverted.
 # Download buttons in sidebar
-if st.session_state.get("df_raw_od_data") is not None:
-    download_data_button_in_sidebar(
-        "df_raw_od_data",
-        "Download raw data  \n(long format)",
-        file_name="data_long_rounded_timestamps.csv",
-    )
+# if st.session_state.get("df_raw_od_data") is not None:
+#     download_data_button_in_sidebar(
+#         "df_raw_od_data",
+#         "Download raw data  \n(long format)",
+#         file_name="data_long_rounded_timestamps.csv",
+#     )
 
-if st.session_state.get("df_wide_raw_od_data") is not None:
-    download_data_button_in_sidebar(
-        "df_wide_raw_od_data",
-        "Download raw data  \n(wide format)",
-        file_name="data_wide_rounded_timestamps.csv",
-    )
+# if st.session_state.get("df_wide_raw_od_data") is not None:
+#     download_data_button_in_sidebar(
+#         "df_wide_raw_od_data",
+#         "Download raw data  \n(wide format)",
+#         file_name="data_wide_rounded_timestamps.csv",
+#     )
 
-if st.session_state.get("df_wide_raw_od_data_filtered") is not None:
-    download_data_button_in_sidebar(
-        "df_wide_raw_od_data_filtered",
-        "Download filtered data",
-        file_name="filtered_data_wide_rounded_timestamps.csv",
-    )
+# if st.session_state.get("df_wide_raw_od_data_filtered") is not None:
+#     download_data_button_in_sidebar(
+#         "df_wide_raw_od_data_filtered",
+#         "Download filtered data",
+#         file_name="filtered_data_wide_rounded_timestamps.csv",
+#     )
 
-if df_rolling is not None:
-    download_data_button_in_sidebar(
-        "df_rolling",
-        "Download rolling median data",
-        file_name="rolling_median_on_filtered_wide_data_with_rounded_timestamps.csv",
-    )
+# if df_rolling is not None:
+#     download_data_button_in_sidebar(
+#         "df_rolling",
+#         "Download rolling median data",
+#         file_name="rolling_median_on_filtered_wide_data_with_rounded_timestamps.csv",
+#     )
