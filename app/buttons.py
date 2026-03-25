@@ -15,6 +15,7 @@ def create_download_button(
         file_name=file_name,
         mime=mime,
         disabled=disabled,
+        icon=":material/download:",
     )
 
 
