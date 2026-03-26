@@ -17,6 +17,7 @@ def create_download_button(
         disabled=disabled,
         type="primary",
         icon=":material/download:",
+        width="stretch",
     )
 
 
