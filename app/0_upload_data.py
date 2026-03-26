@@ -97,6 +97,7 @@ with st.container(border=True):
     with header_col:
         st.header("Step 1. Upload PioReactor OD Data")
     with req_col:
+        # Help message
         with st.popover("Requirements", width="stretch"):
             st.markdown("**Expected structure:**")
             st.markdown("- CSV/TXT file readable by `pandas.read_csv`")
@@ -120,11 +121,17 @@ with st.container(border=True):
             )
     # File Uploading of main data file
     st.markdown("**Main OD Data**")
+    _file_name = st.session_state.get("file_od_upload_name")
+    if _file_name is not None:
+        st.info(f"File previously uploaded: {_file_name}")
     file = st.file_uploader(
         "PioReactor OD table. Upload a single CSV file with PioReactor recordings.",
         type=["csv", "txt"],
         on_change=callback_clear_raw_data,
     )
+    if file is not None:
+        # st.session_state["file_od_upload_bytes"] = file.getvalue()
+        st.session_state["file_od_upload_name"] = file.name
     main_options_cols = st.columns([3, 2], gap="medium")
     with main_options_cols[0]:
         keep_core_data = st.checkbox(
@@ -153,6 +160,7 @@ with st.container(border=True):
     optional_upload_cols = st.columns([2, 3], gap="small")
     with optional_upload_cols[0]:
         st.markdown("**OD Calibration Table**")
+        # help message
         with st.popover("See an Example", width="stretch"):
             st.markdown("**OD Calibration Table**")
             st.markdown(
@@ -173,6 +181,10 @@ with st.container(border=True):
                 type="primary",
                 width="stretch",
             )
+        # file uploading
+        _file_name = st.session_state.get("od_adjustment_upload_name")
+        if _file_name is not None:
+            st.info(f"File previously uploaded: {_file_name}")
         od_adjustment_upload = st.file_uploader(
             "OD adjustment table",
             type=["csv", "txt"],
@@ -180,6 +192,7 @@ with st.container(border=True):
         )
     with optional_upload_cols[1]:
         st.markdown("**Turbidostat Metadata**")
+        # help message
         with st.popover("See an Example", width="stretch"):
             st.markdown("**Turbidostat Metadata**")
             st.markdown(
@@ -210,7 +223,9 @@ with st.container(border=True):
                 type="primary",
                 width="stretch",
             )
-
+        _file_name = st.session_state.get("turbidostat_meta_upload_name")
+        if _file_name is not None:
+            st.info(f"File previously uploaded: {_file_name}")
         turbidostat_meta_upload = st.file_uploader(
             "Dilution metadata (for Turbidostat page)",
             type=["csv"],
