@@ -391,7 +391,7 @@ with st.container(border=True):
                 "Round time to nearest second (defining timesteps). "
                 "Used to align timeseries "
                 "with slight time offsets.",
-                0,
+                1,
                 300,
                 st.session_state.get("round_time", 5),
                 step=1,
@@ -610,10 +610,10 @@ if file is not None:
         )
     except ValueError as e:
         st.error(
-            f"Rounding produced duplicated timepoints in reactors; consider decreasing the rounding time below {round_time} seconds."
+            "Rounding produced duplicated timepoints in reactors; "
+            f"consider decreasing the rounding time below {round_time} seconds."
         )
         with st.expander("Show error details"):
-            st.write(e)
             st.write(e)
             st.write(df_raw_od_data)
         if not aggregate_duplicated_rounded_timepoint:
