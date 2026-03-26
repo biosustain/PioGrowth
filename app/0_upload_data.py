@@ -396,11 +396,11 @@ with st.container(border=True):
                 st.session_state.get("round_time", 5),
                 step=1,
                 help=(
-                    "Rounding help in pivoting the data to wide format from the "
+                    "Rounding helps pivot the data to wide format from the "
                     "long format. If you have multiple measurements for the same "
                     "reactor within the rounded time window, they will be "
-                    "aggregated by median or mean (see option to the right),"
-                    " if you do not deactivate the aggregation option."
+                    "aggregated by median or mean (see option to the right) "
+                    "if aggregation is enabled."
                 ),
             )
         with rounding_columns[1]:
@@ -610,13 +610,17 @@ if file is not None:
         )
     except ValueError as e:
         st.error(
-            "Rounding produced duplicated timepoints in reactors, consider to decrease"
-            f"rounding time to below: {round_time} seconds."
+            f"Rounding produced duplicated timepoints in reactors; consider decreasing the rounding time below {round_time} seconds."
         )
         with st.expander("Show error details"):
             st.write(e)
+            st.write(e)
             st.write(df_raw_od_data)
         if not aggregate_duplicated_rounded_timepoint:
+            # Clear potentially stale wide/derived data before stopping to avoid
+            # inconsistencies with the current df_raw_od_data.
+            st.session_state["df_wide_raw_od_data"] = None
+            st.session_state["df_wide_raw_od_data_filtered"] = None
             st.stop()
         st.warning(
             "Aggregating duplicated timepoint using "
