@@ -613,14 +613,18 @@ if file is not None:
             "Rounding produced duplicated timepoints in reactors; "
             f"consider decreasing the rounding time below {round_time} seconds."
         )
-        with st.expander("Show error details"):
-            st.write(e)
-            st.write(df_raw_od_data)
         if not aggregate_duplicated_rounded_timepoint:
             # Clear potentially stale wide/derived data before stopping to avoid
             # inconsistencies with the current df_raw_od_data.
             st.session_state["df_wide_raw_od_data"] = None
             st.session_state["df_wide_raw_od_data_filtered"] = None
+            st.info(
+                "Consider aggregating duplicated timepoints if you do not "
+                "want to decrease the rounding time."
+            )
+            with st.expander("Show error details"):
+                st.write(e)
+                st.write(df_raw_od_data)
             st.stop()
         st.warning(
             "Aggregating duplicated timepoint using "
