@@ -55,6 +55,7 @@ import growthcurves.plot as gc_plot
 import numpy as np
 import pandas as pd
 import streamlit as st
+from buttons import create_download_button
 from growthcurves_options import (
     render_parameter_calculation_table_upload_style,
     render_upload_style_analysis_options,
@@ -994,31 +995,28 @@ with st.container(border=True):
 
     dl_col1, dl_col2, dl_col3 = st.columns(3)
     with dl_col1:
-        st.download_button(
-            "Download rolling median data",
+        create_download_button(
+            label="Download rolling median data",
             data=df_rolling.to_csv(index=True).encode("utf-8"),
             file_name="batch_analysis_rolling_median_data.csv",
+            disabled=False,
             mime="text/csv",
-            type="primary",
-            width="stretch",
         )
     with dl_col2:
-        st.download_button(
-            "Download summary statistics",
+        create_download_button(
+            label="Download summary statistics",
             data=stats_df.to_csv(index=True).encode("utf-8"),
             file_name="batch_analysis_summary_stats.csv",
+            disabled=False,
             mime="text/csv",
-            type="primary",
-            width="stretch",
         )
     with dl_col3:
-        st.download_button(
-            "Download analysis parameters",
+        create_download_button(
+            label="Download analysis parameters",
             data=params_table.to_csv(index=False).encode("utf-8"),
             file_name="batch_analysis_parameters_by_sample.csv",
+            disabled=False,
             mime="text/csv",
-            type="primary",
-            width="stretch",
         )
 
 # Debug option to inspect session state variables related to batch analysis

@@ -403,7 +403,6 @@ with st.container(border=True):
     )
     st.pyplot(fig)
 
-with st.sidebar:
     create_download_button(
         label="Download figure for fitted splines as PDF",
         data=create_figure_bytes_to_download(fig, fmt="pdf"),
@@ -428,39 +427,35 @@ with st.container(border=True):
     st.subheader("Download Tables")
     dl_col1, dl_col2, dl_col3 = st.columns(3, gap="small")
     with dl_col1:
-        st.download_button(
-            "Download turbidostat data used",
+        create_download_button(
+            label="Download turbidostat data used",
             data=df_rolling.to_csv(index=True).encode("utf-8"),
             file_name="df_rolling_turbidostat.csv",
             mime="text/csv",
-            type="primary",
-            width="stretch",
+            disabled=False,
         )
     with dl_col2:
-        st.download_button(
-            "Download detected peaks",
+        create_download_button(
+            label="Download detected peaks",
             data=peaks.to_csv(index=True).encode("utf-8"),
             file_name="peaks.csv",
             mime="text/csv",
-            type="primary",
-            width="stretch",
+            disabled=False,
         )
     with dl_col3:
-        st.download_button(
-            "Download summary",
+        create_download_button(
+            label="Download summary",
             data=stats_df.to_csv(index=True).encode("utf-8"),
             file_name="batch_analysis_summary_df.csv",
             mime="text/csv",
-            type="primary",
-            width="stretch",
+            disabled=False,
         )
 
 if df_meta is not None:
-    st.download_button(
-        "Download uploaded metadata (filtered to dilution events)",
+    create_download_button(
+        label="Download uploaded metadata (filtered to dilution events)",
         data=df_meta.to_csv(index=False).encode("utf-8"),
         file_name="turbidostat_uploaded_metadata_filtered.csv",
         mime="text/csv",
-        type="primary",
-        width="stretch",
+        disabled=False,
     )
