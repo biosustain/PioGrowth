@@ -377,32 +377,79 @@ with st.container(border=True):
 
         st.divider()
         st.write(
-            "#### Time options:\n"
-            "Select time windows for data to be processed. Dates are inferred from "
-            "uploaded data. This won't be plotted in red as filtered data, but just "
-            "cap the datapoints for reactors outside of the selected windows."
-            " The overall time window bounds the selected time windows for the individual"
-            " reactors."
+            """
+            #### Time and aggregation options:\n
+
+            - round timepoints and handle duplicates due to rounding
+            - select overall and per-reactor time windows for data to be included \
+              in analysis
+            
+            Select time windows for data to be processed. Dates are inferred from 
+            uploaded data. This won't be plotted in red as filtered data, but just 
+            cap the datapoints for reactors outside of the selected windows.
+            The overall time window bounds the selected time windows for the
+            individual reactors.
+            """
         )
         min_date, max_date = None, None
-        time_window_cols = st.columns(
-            [3, 4, 1], gap="large", vertical_alignment="bottom"
+        rounding_columns = st.columns(
+            [4, 2, 2], gap="large", vertical_alignment="bottom"
         )
-        with time_window_cols[0]:
+        with rounding_columns[0]:
             round_time = st.slider(
-                "Round time to nearest second (defining timesteps)."
-                "Can be used to align timeseries "
+                "Round time to nearest second (defining timesteps). "
+                "Used to align timeseries "
                 "with slight time offsets.",
-                0,
-                60,
+                1,
+                300,
                 st.session_state.get("round_time", 5),
                 step=1,
+                help=(
+                    "Rounding helps pivot the data to wide format from the "
+                    "long format. If you have multiple measurements for the same "
+                    "reactor within the rounded time window, they will be "
+                    "aggregated by median or mean (see option to the right) "
+                    "if aggregation is enabled."
+                ),
+            )
+        with rounding_columns[1]:
+            _value = st.session_state.get(
+                "aggregate_duplicated_rounded_timepoint", True
+            )
+            aggregate_duplicated_rounded_timepoint = st.checkbox(
+                "Aggregate data by rounded timepoints?",
+                value=_value,
+                disabled=False,
+                help=(
+                    "If checked, multiple measurements for the same reactor within "
+                    "the rounded time window will be aggregated by median or mean. "
+                    "If not checked, the app will attempt to pivot the data to "
+                    "wide format without aggregation, which will lead to errors if "
+                    "there are duplicated timepoints after rounding."
+                ),
+            )
+        with rounding_columns[2]:
+            _value = st.session_state.get(
+                "aggregate_duplicated_rounded_timepoint_method", "median"
+            )
+
+            aggregate_duplicated_rounded_timepoint_method = st.radio(
+                "If aggregating, which method to use for replicates in same timepoint?",
+                options=["median", "mean"],
+                index=0 if _value == "median" else 1,
+                help=(
+                    "If there are multiple measurements for the same reactor within "
+                    "the rounded time window, this option determines how they will be "
+                    "aggregated when pivoting to wide format. Median is more robust to "
+                    "outliers and therefore the default."
+                ),
             )
         # ! move this to data_dashboard page.
         update_zero_timepoint = None
         time_ranges = {}
+        time_window_cols = st.columns([7, 1], gap="large", vertical_alignment="bottom")
         if df_wide_raw_od_data is not None:
-            with time_window_cols[1]:
+            with time_window_cols[0]:
                 if df_raw_od_data is not None:
                     min_date, max_date = st.select_slider(
                         "Select overall time window (inferred).",
@@ -418,13 +465,13 @@ with st.container(border=True):
                     )
                 else:
                     st.empty()
-            with time_window_cols[2]:
+            with time_window_cols[1]:
                 update_zero_timepoint = st.checkbox(
                     "Reset T0",
                     value=st.session_state.get("update_zero_timepoint", False),
                     help=(
-                        "If checked, a new zero time is set to the minimum timestamp of the"
-                        " overall time window."
+                        "If checked, a new zero time is set to the minimum timestamp of"
+                        " the overall time window."
                     ),
                 )
             with st.expander("Select time window per reactor"):
@@ -470,9 +517,15 @@ st.session_state["filter_by_iqr_range"] = filter_by_iqr_range
 st.session_state["quantile_max"] = quantile_max
 st.session_state["iqr_range_value"] = iqr_range_value
 st.session_state["rolling_window"] = rolling_window
-st.session_state["round_time"] = round_time
 st.session_state["update_zero_timepoint"] = update_zero_timepoint
 st.session_state["time_ranges"] = time_ranges
+st.session_state["round_time"] = round_time
+st.session_state["aggregate_duplicated_rounded_timepoint"] = (
+    aggregate_duplicated_rounded_timepoint
+)
+st.session_state["aggregate_duplicated_rounded_timepoint_method"] = (
+    aggregate_duplicated_rounded_timepoint_method
+)
 
 if min_date is not None and max_date is not None:
     # update data specific options in session state
@@ -566,13 +619,39 @@ if file is not None:
         )
     except ValueError as e:
         st.error(
-            "Rounding produced duplicated timepoints in reactors,"
-            f" please decrease below: {round_time} seconds."
+            "Rounding produced duplicated timepoints in reactors; "
+            f"consider decreasing the rounding time below {round_time} seconds."
         )
-        with st.expander("Show error details"):
-            st.write(e)
-            st.write(df_raw_od_data)
-        st.stop()
+        if not aggregate_duplicated_rounded_timepoint:
+            # Clear potentially stale wide/derived data before stopping to avoid
+            # inconsistencies with the current df_raw_od_data.
+            st.session_state["df_wide_raw_od_data"] = None
+            st.session_state["df_wide_raw_od_data_filtered"] = None
+            st.info(
+                "Consider aggregating duplicated timepoints if you do not "
+                "want to decrease the rounding time."
+            )
+            with st.expander("Show error details"):
+                st.write(e)
+                st.write(df_raw_od_data)
+            st.stop()
+        st.warning(
+            "Aggregating duplicated timepoint using "
+            f"the {aggregate_duplicated_rounded_timepoint_method}."
+        )
+
+        df_wide_raw_od_data = (
+            df_raw_od_data.groupby(
+                ["timestamp_rounded", "pioreactor_unit"], sort=False
+            )["od_reading"]
+            .agg(aggregate_duplicated_rounded_timepoint_method)
+            .reset_index()
+        )
+        df_wide_raw_od_data = df_wide_raw_od_data.pivot(
+            index="timestamp_rounded",
+            columns="pioreactor_unit",
+            values="od_reading",
+        )
     st.session_state["df_wide_raw_od_data"] = df_wide_raw_od_data
     st.session_state["upload_processing_summary_msg"] = msg
     if rerun:
@@ -801,3 +880,13 @@ if st.session_state.get("debug_mode", False):
                 "start_time (session.state)": st.session_state.get("start_time"),
             }
         )
+        if st.session_state.get("df_raw_od_data") is not None:
+            st.write(
+                "Raw OD data:",
+                st.session_state["df_raw_od_data"],
+            )
+        if st.session_state.get("df_wide_raw_od_data") is not None:
+            st.write(
+                "Wide raw OD data:",
+                st.session_state["df_wide_raw_od_data"],
+            )
