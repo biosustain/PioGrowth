@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 from buttons import convert_data, create_download_button
-from plots import plot_growth_data_w_mask
+from plots import create_figure_bytes_to_download, plot_growth_data_w_mask
 from ui_components import page_header_with_help, show_warning_to_upload_data
 
 import piogrowth
@@ -155,6 +155,7 @@ if df_wide_raw_od_data is not None and masked is not None:
                 df=mask_plot,
                 start_time=start_time,
             )
+        # Figure showing the
         fig = plot_growth_data_w_mask(
             df_plot,
             mask_plot,
@@ -175,6 +176,14 @@ if df_wide_raw_od_data is not None and masked is not None:
             unsafe_allow_html=True,
         )
         st.write(fig)
+        create_download_button(
+            label="Download figure as PDF",
+            data=create_figure_bytes_to_download(fig, fmt="pdf"),
+            file_name="data_overview.pdf",
+            disabled=False,
+            mime="application/pdf",
+        )
+
 
 # show summary message about data processing
 if processing_summary:
@@ -201,15 +210,15 @@ if df_rolling is not None:
             mime="text/csv",
         )
 
-        # consider removing this plot
-        if not use_elapsed_time and start_time is not None:
-            view = df_rolling.copy()
-            view.index = start_time + pd.to_timedelta(view.index, unit="h")
-        else:
-            view = df_rolling
+        # ! removing this plot for now
+        # if not use_elapsed_time and start_time is not None:
+        #     view = df_rolling.copy()
+        #     view.index = start_time + pd.to_timedelta(view.index, unit="h")
+        # else:
+        #     view = df_rolling
 
-        ax = view.plot.line(style=".", ms=2)
-        st.write(ax.get_figure())
+        # ax = view.plot.line(style=".", ms=2)
+        # st.write(ax.get_figure())
 
 # ! This was moved to the place in the main page, not sidebar. Can be reverted.
 # Download buttons in sidebar
