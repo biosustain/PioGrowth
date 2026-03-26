@@ -55,7 +55,7 @@ with st.container(border=True):
         else:
             st.dataframe(df_time_map, width="stretch")
 
-    download_buttons = st.columns(5)
+    download_buttons = st.columns(3)
     with download_buttons[0]:
         create_download_button(
             label="Download raw data  \n(long format)",
@@ -155,7 +155,7 @@ if df_wide_raw_od_data is not None and masked is not None:
                 df=mask_plot,
                 start_time=start_time,
             )
-        # Figure showing the
+        # Figure showing the raw and masked growth data for each reactor
         fig = plot_growth_data_w_mask(
             df_plot,
             mask_plot,
