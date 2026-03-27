@@ -27,7 +27,7 @@ Changes are applied immediately and carry through to downstream analysis pages.
 page_header_with_help("Select / Exclude Data", SELECT_DATA_HELP)
 
 # ── Session state guards ────────────────────────────────────────────────────
-df_rolling: pd.DataFrame | None = st.session_state.get("df_rolling")
+df_rolling: pd.DataFrame = st.session_state.get("df_rolling")
 start_time = st.session_state.get("start_time")
 use_elapsed_time = bool(st.session_state.get("USE_ELAPSED_TIME_FOR_PLOTS", True))
 
@@ -35,8 +35,9 @@ if df_rolling is None:
     show_warning_to_upload_data()
     st.stop()
 
-# Keep a pristine backup so individual columns can be restored
+# backup so individual columns can be restored
 if "select_data_original_df_rolling" not in st.session_state:
+    # ! key needs to be invalidated if df_rolling is overwritten on upload_data page
     st.session_state["select_data_original_df_rolling"] = df_rolling.copy()
 
 original_df: pd.DataFrame = st.session_state["select_data_original_df_rolling"]
@@ -62,18 +63,14 @@ def _on_exclude():
         return
 
     df: pd.DataFrame = st.session_state["df_rolling"]
-    series = df[selected_col]
-    t_all = series.index.to_numpy(dtype=float)
-
-    # Match selected x-values to index positions
-    idx = piogrowth.analyze.match_selected_times(t_all, xs)
-    if idx.size == 0:
+    valid_xs = df.index.intersection(xs)
+    if len(valid_xs) == 0:
         st.toast("No matching data points found.", icon="⚠️")
         return
 
-    df.loc[df.index[idx], selected_col] = np.nan
+    df.loc[valid_xs, selected_col] = np.nan
     st.session_state["df_rolling"] = df
-    st.toast(f"Set {idx.size} point(s) to NaN in '{selected_col}'.", icon="✅")
+    st.toast(f"Set {len(valid_xs)} point(s) to NaN in '{selected_col}'.", icon="✅")
 
 
 def _on_reset_col():
