@@ -40,6 +40,7 @@ def render_about():
 # Navigation
 raw_data = st.Page("0_upload_data.py", title="Upload Data")
 data_dashboard = st.Page("0_data_dashboard.py", title="Data Dashboard")
+select_data = st.Page("0_select_data.py", title="Select / Exclude Data")
 batch_analysis = st.Page("1_batch_analysis.py", title="Batch Growth Analysis")
 turbistat_modus = st.Page("2_turbiostat.py", title="Turbidostat Growth Analysis")
 downloads_page = st.Page("0_downloads.py", title="Downloads")
@@ -74,6 +75,7 @@ pg = st.navigation(
     [
         raw_data,
         data_dashboard,
+        select_data,
         batch_analysis,
         turbistat_modus,
         downloads_page,
