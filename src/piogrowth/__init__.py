@@ -1,10 +1,13 @@
 # The __init__.py file is loaded when the package is loaded.
 # It is used to indicate that the directory in which it resides is a Python package
+import logging
 from importlib import metadata
 
 import pandas as pd
 
 from . import filter, load
+
+logger = logging.getLogger(__name__)
 
 __version__ = metadata.version("piogrowth")
 
@@ -20,7 +23,10 @@ def reindex_w_relative_time(
 ) -> pd.DataFrame:
     """Reindex the DataFrame to use relative time as the index."""
     df = df.copy()  # needed as reindex as DataFrame is a view
-    df.index = convert_to_elapsed_hours(df.index, start_time=start_time or df.index[0])
+    if start_time is None:
+        logger.debug("Start time is None, using minimum timestamp.")
+        start_time = df.index.min()
+    df.index = convert_to_elapsed_hours(df.index, start_time=start_time)
     df.index.name = new_index_name
     return df
 
