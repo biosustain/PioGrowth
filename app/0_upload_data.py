@@ -390,8 +390,8 @@ with st.container(border=True):
             ecod_factor = st.slider(
                 "ECOD factor for outlier removal",
                 0.5,
-                5.0,
-                st.session_state.get("ecod_factor", 1.5),
+                8.0,
+                st.session_state.get("ecod_factor", 4.0),
                 step=0.1,
                 help="Used when outlier method is ECOD. Anomaly detection sensitivity.",
             )
