@@ -347,10 +347,21 @@ with st.container(border=True):
                 "Remove maximum OD readings by quantile",
                 value=st.session_state.get("remove_max", False),
             )
-            filter_by_iqr_range = st.checkbox(
-                "Remove outliers by Inter-Quartile Range (IQR) in rolling window of"
-                " timepoints",
-                value=st.session_state.get("filter_by_iqr_range", False),
+            _outlier_options = ["None", "IQR", "ECOD"]
+            _outlier_default = st.session_state.get("outlier_method", "None")
+            if _outlier_default not in _outlier_options:
+                _outlier_default = "None"
+            outlier_method = st.selectbox(
+                "Outlier detection method",
+                options=_outlier_options,
+                index=_outlier_options.index(_outlier_default),
+                help=(
+                    "- `None`: no outlier removal.\n"
+                    "- `IQR`: remove outliers using Inter-Quartile Range in a rolling "
+                    "window of timepoints.\n"
+                    "- `ECOD`: remove outliers using the ECOD algorithm "
+                    "(Empirical Cumulative distribution-based Outlier Detection)."
+                ),
             )
         with filter_columns[1]:
             quantile_max = st.slider(
@@ -361,11 +372,12 @@ with st.container(border=True):
                 step=0.01,
             )
             iqr_range_value = st.slider(
-                "IQR range for outlier removal",
+                "IQR factor for outlier removal",
                 1.0,
                 3.0,
                 st.session_state.get("iqr_range_value", 1.5),
                 step=0.1,
+                help="Used when outlier method is IQR. Multiplier of the IQR.",
             )
             rolling_window = st.slider(
                 "Rolling window (of timepoints) for IQR outlier removal",
@@ -373,6 +385,15 @@ with st.container(border=True):
                 61,
                 st.session_state.get("rolling_window", 21),
                 step=2,
+                help="Used when outlier method is IQR.",
+            )
+            ecod_factor = st.slider(
+                "ECOD factor for outlier removal",
+                0.5,
+                5.0,
+                st.session_state.get("ecod_factor", 1.5),
+                step=0.1,
+                help="Used when outlier method is ECOD. Anomaly detection sensitivity.",
             )
 
         st.divider()
@@ -513,10 +534,11 @@ st.session_state["negative_handling"] = negative_handling
 st.session_state["fill_na"] = fill_na
 st.session_state["remove_downward_trending"] = remove_downward_trending
 st.session_state["remove_max"] = remove_max
-st.session_state["filter_by_iqr_range"] = filter_by_iqr_range
+st.session_state["outlier_method"] = outlier_method
 st.session_state["quantile_max"] = quantile_max
 st.session_state["iqr_range_value"] = iqr_range_value
 st.session_state["rolling_window"] = rolling_window
+st.session_state["ecod_factor"] = ecod_factor
 st.session_state["update_zero_timepoint"] = update_zero_timepoint
 st.session_state["time_ranges"] = time_ranges
 st.session_state["round_time"] = round_time
@@ -765,23 +787,32 @@ if button_pressed:
     # true or false (this would be arguing maybe for long data format)
     # can be used in plot for visualization
     # https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.rolling.html
-
-    if filter_by_iqr_range:
-        with st.spinner("Applying IQR outlier removal..."):
+    print(f"Applying outlier method: {outlier_method}")
+    if outlier_method in ("IQR", "ECOD"):
+        kwargs = (
+            {"method": "iqr", "factor": iqr_range_value, "window_size": rolling_window}
+            if outlier_method == "IQR"
+            else {"method": "ecod", "factor": ecod_factor}
+        )
+        # ! not robust to missing values yet.
+        if (
+            df_wide_raw_od_data_filtered.isna().sum().sum() > 0
+            and outlier_method == "ECOD"
+        ):
+            st.error(
+                "Found missing values in the data. ECOD outlier detection does not work"
+                " with missing values. Consider setting forward and backward filling "
+                " before applying ECOD outlier detection."
+            )
+            st.stop()
+        with st.spinner(f"Applying {outlier_method} outlier removal..."):
             mask_outliers = df_wide_raw_od_data_filtered.apply(
-                gc.preprocessing.detect_outliers,
-                raw=False,
-                method="iqr",
-                factor=iqr_range_value,
-                window_size=rolling_window,
+                gc.preprocessing.detect_outliers, raw=False, **kwargs
             ).astype(bool)
-            # st.write(f"### Number of outliers detected: {mask_outliers.sum().sum()}")
-            msg += f"- Number of outliers detected: {mask_outliers.sum().sum()}\n"
+            n_out = mask_outliers.sum().sum()
+            msg += f"- Number of outliers detected ({outlier_method}): {n_out}\n"
             msg += f"   - in detail: {mask_outliers.sum().to_dict()}\n"
             masked = masked | mask_outliers
-
-            # apply mask to entire dataframe
-
             df_wide_raw_od_data_filtered = df_wide_raw_od_data_filtered.mask(
                 mask_outliers
             )
