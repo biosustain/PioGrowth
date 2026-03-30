@@ -16,41 +16,18 @@ def create_figure_bytes_to_download(fig: plt.Figure, fmt: str = "pdf") -> io.Byt
     return buf
 
 
-def plot_growth_data(df_long: pd.DataFrame):
-    """Plot optical density (OD) growth data."""
-    units = df_long["pioreactor_unit"].nunique()
-    fig, axes = plt.subplots(
-        units, 1, figsize=(10, 2 * units), sharey=True, sharex=True, squeeze=False
-    )
-    axes = axes.flatten()
-    # grid container (reactive to UI changes)
-    for (label, group_df), ax in zip(df_long.groupby("pioreactor_unit"), axes):
-        group_df.plot.scatter(
-            x="timestamp",
-            y="od_reading",
-            rot=45,
-            ax=ax,
-            title=f"Reactor {label}",  # Customize legend text here
-        )
-    ax = axes[-1]
-    fig = ax.get_figure()
-    fig.tight_layout()
-
-    date_form = DateFormatter("%Y-%m-%d %H:%M")
-    _ = ax.xaxis.set_major_formatter(date_form)
-    return fig
-
-
 def plot_growth_data_w_mask(
     df_wide: pd.DataFrame,
     df_mask: pd.DataFrame,
+    sharey: bool = False,
+    is_data_index: bool = True,
 ) -> plt.Figure:
     """Plot optical density (OD) growth data."""
     # ?check that index is datetime and columns are numeric?
 
     units = df_wide.shape[1]
     fig, axes = plt.subplots(
-        units, 1, figsize=(10, 2 * units), sharey=True, sharex=True, squeeze=False
+        units, 1, figsize=(10, 2 * units), sharey=sharey, sharex=True, squeeze=False
     )
     axes = axes.flatten()
     df_columns = df_wide.columns
@@ -86,14 +63,16 @@ def plot_growth_data_w_mask(
     fig = ax.get_figure()
     fig.tight_layout()
 
-    date_form = DateFormatter("%Y-%m-%d %H:%M")
-    _ = ax.xaxis.set_major_formatter(date_form)
+    if is_data_index:
+        date_form = DateFormatter("%Y-%m-%d %H:%M")
+        _ = ax.xaxis.set_major_formatter(date_form)
     return fig
 
 
 def plot_growth_data_w_peaks(
     df_wide: pd.DataFrame,
     peaks: pd.DataFrame,
+    is_data_index: bool = True,
 ) -> plt.Figure:
     """Plot optical density (OD) growth data."""
     # ?check that index is datetime and columns are numeric?
@@ -122,17 +101,23 @@ def plot_growth_data_w_peaks(
         # Plot removed values in red
         peak_times = peaks[col].dropna().index
         for timepoint in peak_times:
-            ax.axvline(x=timepoint, color="red", alpha=0.5, linestyle="--")
+            ax.axvline(x=timepoint, color="grey", alpha=0.3, linestyle="--")
     ax = axes[-1]
-    date_form = DateFormatter("%Y-%m-%d %H:%M")
-    _ = ax.xaxis.set_major_formatter(date_form)
+    if is_data_index:
+        date_form = DateFormatter("%Y-%m-%d %H:%M")
+        _ = ax.xaxis.set_major_formatter(date_form)
     fig = ax.get_figure()
     fig.tight_layout()
 
     return fig, axes
 
 
-def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
+def plot_growth_data(
+    splines,
+    titles=None,
+    ylabel="OD readings",
+    xlabel="timepoints (rounded)",
+):
     rows = (splines.shape[-1] + 1) // 2
     axes = splines.plot.line(
         style=".",
@@ -143,7 +128,7 @@ def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
         sharey=False,
         title=titles,
         ylabel=ylabel,
-        xlabel="timepoints (rounded)",
+        xlabel=xlabel,
         legend=False,
         figsize=(10, rows * 2),
     )
@@ -153,7 +138,9 @@ def plot_fitted_data(splines, titles=None, ylabel="OD readings"):
     return fig, axes
 
 
-def plot_derivatives(derivatives: pd.DataFrame, titles=None) -> plt.Figure:
+def plot_derivatives(
+    derivatives: pd.DataFrame, titles=None, xlabel: str = "timepoints (rounded)"
+) -> plt.Figure:
     rows = (derivatives.shape[-1] + 1) // 2
     axes = derivatives.plot.line(
         style=".",
@@ -162,7 +149,7 @@ def plot_derivatives(derivatives: pd.DataFrame, titles=None) -> plt.Figure:
         layout=(-1, 2),
         title=titles,
         ylabel="1st derivative",
-        xlabel="timepoints (rounded)",
+        xlabel=xlabel,
         legend=False,
         sharex=True,
         sharey=False,
