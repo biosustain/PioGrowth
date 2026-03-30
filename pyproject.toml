@@ -9,7 +9,7 @@ name = "piogrowth"
 #     "version", # version is loaded from the package
 #     #"dependencies", # add if using requirements.txt
 # ]
-version = "0.1.0"          # this is used if not using dynamic loading of the version
+version = "0.2.0"          # this is used if not using dynamic loading of the version
 readme = "README.md"
 requires-python = ">=3.10" # test all higher Python versions
 # These are keywords

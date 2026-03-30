@@ -46,8 +46,7 @@ def render_options_for_growthcurve_fitting(s_min=3, s_max=1000, s_default=1000):
     phase_boundary_method = tangent_cols[0].radio(
         "Select method for exponential phase detection (default recommended):",
         ["default", "tangent", "threshold"],
-        help=(
-            """
+        help=("""
             Default picks for parametric models the threshold method and
             for phenomenological models, the sliding window and spline method the
             tangent method.
@@ -56,8 +55,7 @@ def render_options_for_growthcurve_fitting(s_min=3, s_max=1000, s_default=1000):
 
             - "threshold": Threshold-based method using fractions of μ_max
             - "tangent": Tangent line method at point of maximum growth rate
-            """
-        ),
+            """),
         index=0,
     )
     exp_frac = tangent_cols[1].slider(
@@ -529,14 +527,12 @@ div.param-calc-table th {{
 """,
         unsafe_allow_html=True,
     )
-    st.markdown(
-        """
+    st.markdown("""
     For more information see the
     [growthcurves documentation](https://growthcurves.readthedocs.io/),
     especially the tutorial on fitting curves with growthcurves
     [here](https://growthcurves.readthedocs.io/en/latest/tutorial/analysis.html)
-    """
-    )
+    """)
 
 
 def render_upload_style_analysis_options(
