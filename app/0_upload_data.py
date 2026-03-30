@@ -195,8 +195,7 @@ with st.container(border=True):
         # help message
         with st.popover("See an Example", width="stretch"):
             st.markdown("**Turbidostat Metadata**")
-            st.markdown(
-                """
+            st.markdown("""
                 If provided, peaks are not autodetected.
                 
                 - CSV file with columns `timestamp_localtime`, `pioreactor_unit`,
@@ -205,8 +204,7 @@ with st.container(border=True):
                 - Used to parse `DilutionEvents` for turbidostat analysis 
                   based on event descriptions in the metadata. 
                   If not provided, peaks will be autodetected based on OD data.
-                """
-            )
+                """)
 
             st.markdown("\n > Export from PioReactor WebApp or CLI.")
             st.divider()
@@ -376,8 +374,7 @@ with st.container(border=True):
             )
 
         st.divider()
-        st.write(
-            """
+        st.write("""
             #### Time and aggregation options:\n
 
             - round timepoints and handle duplicates due to rounding
@@ -389,8 +386,7 @@ with st.container(border=True):
             cap the datapoints for reactors outside of the selected windows.
             The overall time window bounds the selected time windows for the
             individual reactors.
-            """
-        )
+            """)
         min_date, max_date = None, None
         rounding_columns = st.columns(
             [4, 2, 2], gap="large", vertical_alignment="bottom"
