@@ -1,3 +1,7 @@
+> New repo for growthcurve apps: https://github.com/biosustain/growthcurves_app
+
+! This one is archived !
+
 # PioGrowth
 
 Repository for Streamlit app for analysis of optical density (OD) measurements
